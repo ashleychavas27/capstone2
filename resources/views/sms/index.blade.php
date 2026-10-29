@@ -13,6 +13,20 @@
         </button>
     </div>
 
+    @if($smsMock)
+        <div class="alert alert-warning small no-print">
+            <i class="bi bi-exclamation-triangle me-1"></i>
+            <strong>Mock mode is ON</strong> — messages are only recorded in this log, nothing is sent to a phone.
+            Set <code>SMS_MOCK=false</code> plus the gateway credentials in the server environment to send real SMS.
+        </div>
+    @else
+        <div class="alert alert-success small no-print">
+            <i class="bi bi-broadcast me-1"></i>
+            <strong>Live gateway</strong> — sending through <code>{{ parse_url($smsEndpoint, PHP_URL_HOST) ?: 'the configured endpoint' }}</code>
+            as sender <code>{{ $smsSender ?: 'default' }}</code>.
+        </div>
+    @endif
+
     <div class="alert alert-info small d-flex align-items-center gap-2 no-print">
         <i class="bi bi-lightbulb"></i>
         <span>Reminders are sent automatically whenever an appointment is marked <strong>Confirmed</strong>. This page lets you review the history or send a manual message.</span>

@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Daily Clinic Report · {{ config('app.name', 'Dental Clinic') }}</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
 
     <style>
         body { font-family: 'Segoe UI', system-ui, sans-serif; color: #111; }
@@ -92,12 +93,39 @@
         {{ $schedule->count() }} appointment(s) total. This report is system-generated and requires no signature.
     </div>
 
-    <div class="text-center mt-4">
-        <button class="btn btn-primary no-print" onclick="window.print()">
+    <div class="text-center mt-4 no-print">
+        <button type="button" class="btn btn-primary" id="btnPrintReport">
             <i class="bi bi-printer me-1"></i>Print / Save as PDF
         </button>
-        <button class="btn btn-outline-secondary no-print" onclick="window.close()">Close</button>
+        <button type="button" class="btn btn-outline-secondary" id="btnCloseReport">Close</button>
     </div>
 </div>
+
+<script>
+    // Printing and closing both fail inside in-app browsers (Messenger,
+    // Facebook) and when the tab was not opened by a script, so each button
+    // falls back to something that always works on a phone.
+    document.getElementById('btnPrintReport').addEventListener('click', function () {
+        try {
+            window.print();
+        } catch (e) {
+            window.alert('This browser cannot open the print dialog.\n\nOpen this page in Chrome or Safari, then use the browser menu and choose Print or Share > Print.');
+        }
+    });
+
+    document.getElementById('btnCloseReport').addEventListener('click', function () {
+        // Only a script-opened tab may be closed; otherwise the call is ignored.
+        window.close();
+
+        setTimeout(function () {
+            if (window.closed) return;
+            if (window.history.length > 1) {
+                window.history.back();
+            } else {
+                window.location.href = @json(route('dashboard'));
+            }
+        }, 250);
+    });
+</script>
 </body>
 </html>

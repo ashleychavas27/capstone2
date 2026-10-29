@@ -19,7 +19,13 @@ class SmsController extends Controller
     {
         $patients = User::where('role', User::ROLE_PATIENT)->orderBy('name')->get();
 
-        return view('sms.index', compact('patients'));
+        // Surfaced in the UI so a misconfigured deploy (mock left on, or a
+        // blueprint overriding SMS_MOCK) is obvious instead of silent.
+        $smsMock = (bool) config('services.sms.mock', true);
+        $smsEndpoint = (string) config('services.sms.endpoint', '');
+        $smsSender = (string) config('services.sms.sender_id', '');
+
+        return view('sms.index', compact('patients', 'smsMock', 'smsEndpoint', 'smsSender'));
     }
 
     /**

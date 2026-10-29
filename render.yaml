@@ -65,9 +65,18 @@ services:
         value: "off"
       - key: SUPABASE_SECRET_KEY
         sync: false
-      # --- SMS gateway stays mocked until you have production credentials ---
+      # --- SMS gateway (Semaphore) ---
+      # sync: false means the value comes from the Render dashboard, NOT this
+      # file. A hard-coded value here overrides the dashboard, which is why
+      # messages kept logging as "Mocked" after SMS_MOCK was set to false.
       - key: SMS_MOCK
-        value: "true"
+        sync: false
+      - key: SMS_API_KEY
+        sync: false
+      - key: SMS_SENDER_ID
+        sync: false
+      - key: SMS_ENDPOINT
+        sync: false
 
 # Note on Cron Jobs:
 # Cron jobs are unavailable on Render's Free plan.
