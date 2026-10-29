@@ -20,6 +20,13 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->alias([
             'role' => EnsureRole::class,
         ]);
+
+        // Signing out must never dead-end on "419 Page Expired": once the
+        // session has timed out the CSRF token can no longer match, and the
+        // user is left stuck on the error page with no way back.
+        $middleware->validateCsrfTokens(except: [
+            'logout',
+        ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         //
