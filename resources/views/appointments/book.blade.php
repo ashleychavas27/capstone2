@@ -86,6 +86,21 @@
 
         .legend-pill.full { background: #FCE8E8; color: #C0392B; }
         .legend-pill.full .dot { background: #D64541; }
+
+        /* Phones: the calendar card only gets ~300px, so trim its padding to
+           give the 7 day columns room, and stop the legend labels from
+           wrapping inside their pills. */
+        @media (max-width: 575.98px) {
+            .booking-calendar { padding: .65rem !important; }
+            .cal-grid { gap: 2px; }
+            .cal-day { font-size: .78rem; border-radius: .4rem; }
+            .cal-weekdays { font-size: .62rem; letter-spacing: .02em; }
+            .legend-pill {
+                white-space: nowrap;
+                font-size: .66rem;
+                padding: .15rem .5rem;
+            }
+        }
     </style>
 @endpush
 
