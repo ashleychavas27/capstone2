@@ -20,9 +20,7 @@ use Illuminate\Support\Facades\Schema;
  */
 class ChatBotService
 {
-    protected const MODEL = 'gemini-2.5-flash';
-
-    protected const ENDPOINT = 'https://generativelanguage.googleapis.com/v1beta/models/'.self::MODEL.':generateContent';
+    protected const DEFAULT_MODEL = 'gemini-3.5-flash';
 
     /**
      * Clinic knowledge used for both the Gemini system prompt and the offline
@@ -41,7 +39,7 @@ class ChatBotService
             .' (lunch break '.Appointment::lunchLabel().'). Sunday CLOSED. Holidays: open.';
 
         return <<<TXT
-        You are the friendly online assistant of a Dental Clinic.
+        You are Molar, the friendly online assistant of a Dental Clinic.
         Answer questions briefly (2-4 sentences), in English or Taglish, and stay on dental topics.
 
         Clinic facts you may share:
@@ -101,7 +99,10 @@ class ChatBotService
     /** Call the Gemini generateContent REST endpoint. */
     protected function askGemini(string $apiKey, string $message): string
     {
-        $response = Http::timeout(20)->post(self::ENDPOINT.'?key='.$apiKey, [
+        $model = (string) config('services.gemini.model', self::DEFAULT_MODEL);
+        $endpoint = 'https://generativelanguage.googleapis.com/v1beta/models/'.$model.':generateContent?key='.$apiKey;
+
+        $payload = [
             'systemInstruction' => [
                 'parts' => [['text' => $this->clinicContext()]],
             ],
@@ -110,9 +111,20 @@ class ChatBotService
             ],
             'generationConfig' => [
                 'temperature' => 0.4,
-                'maxOutputTokens' => 300,
+                'maxOutputTokens' => 600,
+                'thinkingConfig' => [
+                    'thinkingBudget' => 0,
+                ],
             ],
-        ]);
+        ];
+
+        $response = Http::timeout(25)->post($endpoint, $payload);
+
+        // If the model does not support thinkingConfig (HTTP 400), retry once without it.
+        if ($response->status() === 400 && str_contains($response->body(), 'INVALID_ARGUMENT')) {
+            unset($payload['generationConfig']['thinkingConfig']);
+            $response = Http::timeout(25)->post($endpoint, $payload);
+        }
 
         if (! $response->successful()) {
             throw new \RuntimeException('Gemini API error '.$response->status().': '.$response->body());

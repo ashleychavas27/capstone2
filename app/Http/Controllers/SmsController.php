@@ -33,7 +33,7 @@ class SmsController extends Controller
             'recipient_phone' => e($l->recipient_phone),
             'message' => e($l->message),
             'status' => $l->status,
-            'sent_at' => $l->sent_at?->format('M d, Y h:i A') ?? '—',
+            'sent_at' => $l->sent_at?->timezone(config('app.timezone', 'Asia/Manila'))->format('M d, Y h:i A') ?? '—',
         ]);
 
         return response()->json(['data' => $logs->values()]);
@@ -42,15 +42,28 @@ class SmsController extends Controller
     /**
      * Manually send an SMS reminder to a patient (also recorded in sms_logs).
      */
-    public function send(Request $request): RedirectResponse
+    public function send(Request $request): \Illuminate\Http\Response|\Illuminate\Http\JsonResponse|\Illuminate\Http\RedirectResponse
     {
         $data = $request->validate([
             'recipient_phone' => ['required', 'string', 'max:20'],
-            'message' => ['required', 'string', 'max:160'],
+            'message'         => ['required', 'string', 'max:160'],
         ]);
 
-        app(SmsService::class)->send($data['recipient_phone'], $data['message']);
+        $log = app(SmsService::class)->send($data['recipient_phone'], $data['message']);
+
+        $failed = $log->status === SmsLog::STATUS_FAILED;
+
+        if ($request->wantsJson()) {
+            return $failed
+                ? response()->json(['message' => 'SMS delivery failed. Verify the phone number and gateway credits.'], 422)
+                : response()->json(['message' => 'SMS sent.', 'log_id' => $log->id, 'status' => $log->status]);
+        }
+
+        if ($failed) {
+            return back()->with('error', 'SMS delivery failed. Please verify the recipient mobile number (e.g., 09XXXXXXXXX) and gateway credits.');
+        }
 
         return back()->with('success', 'SMS sent and logged.');
     }
+
 }

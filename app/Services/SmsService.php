@@ -38,10 +38,30 @@ class SmsService
     }
 
     /**
+     * Normalize Philippine phone numbers to 11-digit 09XXXXXXXXX format.
+     */
+    public static function normalizePhone(string $phone): string
+    {
+        $digits = preg_replace('/\D+/', '', $phone);
+
+        if (str_starts_with($digits, '63') && strlen($digits) === 12) {
+            return '0'.substr($digits, 2);
+        }
+
+        if (str_starts_with($digits, '9') && strlen($digits) === 10) {
+            return '0'.$digits;
+        }
+
+        return $digits;
+    }
+
+    /**
      * Send a message to one recipient and persist the attempt in sms_logs.
      */
     public function send(string $recipientPhone, string $message): SmsLog
     {
+        $normalizedPhone = self::normalizePhone($recipientPhone);
+
         if ($this->mock) {
             // Simulate the gateway round-trip.
             $log = SmsLog::create([
@@ -60,11 +80,35 @@ class SmsService
         }
 
         try {
-            $response = Http::asForm()->timeout(15)->post($this->endpoint, [
-                'api_key' => $this->apiKey,
-                'sender_id' => $this->senderId,
-                'recipients' => $recipientPhone,
-                'message' => $message,
+            $isSemaphore = str_contains($this->endpoint, 'semaphore.co');
+
+            if ($isSemaphore) {
+                $payload = [
+                    'apikey' => $this->apiKey,
+                    'number' => $normalizedPhone,
+                    'message' => $message,
+                    'sendername' => $this->senderId,
+                ];
+            } else {
+                $payload = [
+                    'api_key' => $this->apiKey,
+                    'sender_id' => $this->senderId,
+                    'recipients' => $recipientPhone,
+                    'message' => $message,
+                ];
+            }
+
+            Log::info('[SMS] Sending via gateway.', [
+                'endpoint' => $this->endpoint,
+                'to'       => $normalizedPhone,
+                'sender'   => $this->senderId,
+            ]);
+
+            $response = Http::asForm()->timeout(15)->post($this->endpoint, $payload);
+
+            Log::info('[SMS] Gateway response.', [
+                'http_status' => $response->status(),
+                'body'        => $response->body(),
             ]);
 
             $status = $response->successful() ? SmsLog::STATUS_SENT : SmsLog::STATUS_FAILED;
@@ -72,12 +116,15 @@ class SmsService
             if (! $response->successful()) {
                 Log::warning('[SMS] Gateway returned a non-success response.', [
                     'status' => $response->status(),
-                    'body' => $response->body(),
+                    'body'   => $response->body(),
                 ]);
             }
         } catch (\Throwable $e) {
             $status = SmsLog::STATUS_FAILED;
-            Log::error('[SMS] Failed to send SMS: '.$e->getMessage(), ['to' => $recipientPhone]);
+            Log::error('[SMS] Failed to send SMS: '.$e->getMessage(), [
+                'to'        => $recipientPhone,
+                'exception' => $e->getTraceAsString(),
+            ]);
         }
 
         return SmsLog::create([

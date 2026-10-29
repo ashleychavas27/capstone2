@@ -56,7 +56,7 @@
                 </div>
                 <div class="card-body p-0">
                     <div class="table-responsive">
-                        <table class="table table-hover align-middle mb-0">
+                        <table class="table table-hover align-middle mb-0 table-stack">
                             <thead class="table-light">
                                 <tr>
                                     <th>Date</th>
@@ -72,12 +72,12 @@
                             <tbody>
                                 @forelse($patient->patientAppointments as $appt)
                                     <tr>
-                                        <td>{{ $appt->appointment_date->format('M d, Y') }}</td>
-                                        <td>{{ $appt->formatted_slot }}</td>
-                                        <td>{{ $appt->service_type }}</td>
-                                        <td>{{ $appt->dentist->name ?? '—' }}</td>
-                                        <td>@include('partials.status-badge', ['status' => $appt->status])</td>
-                                        <td>
+                                        <td data-label="Date">{{ $appt->appointment_date->format('M d, Y') }}</td>
+                                        <td data-label="Time">{{ $appt->formatted_slot }}</td>
+                                        <td data-label="Service">{{ $appt->service_type }}</td>
+                                        <td data-label="Dentist">{{ $appt->dentist->name ?? '—' }}</td>
+                                        <td data-label="Status">@include('partials.status-badge', ['status' => $appt->status])</td>
+                                        <td data-label="Treatment">
                                             @if($appt->treatmentRecord)
                                                 <button type="button" class="btn btn-sm btn-link p-0" data-bs-toggle="modal"
                                                         data-bs-target="#treatmentViewModal"
@@ -90,7 +90,7 @@
                                                 <span class="text-muted small">—</span>
                                             @endif
                                         </td>
-                                        <td>
+                                        <td data-label="Reseta">
                                             @if($appt->prescriptions->isNotEmpty())
                                                 <a href="{{ route('prescriptions.print', $appt->prescriptions->first()) }}" target="_blank" class="btn btn-sm btn-link p-0">
                                                     <i class="bi bi-file-earmark-text me-1"></i>{{ $appt->prescriptions->count() }} Rx
@@ -100,7 +100,7 @@
                                             @endif
                                         </td>
                                         @if(auth()->user()->isDentist())
-                                            <td class="no-print">
+                                            <td class="no-print" data-label="Actions">
                                                 <button type="button" class="btn btn-sm btn-outline-primary"
                                                         data-bs-toggle="modal" data-bs-target="#treatmentModal"
                                                         data-appointment-id="{{ $appt->id }}"

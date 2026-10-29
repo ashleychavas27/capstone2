@@ -9,6 +9,18 @@
            ------------------------------------------------------------------ */
         .booking-calendar { background: #fff; }
 
+        /* Fixed 7-column grid: flex columns let all 31 day cells shrink into
+           one squashed line on narrow cards. */
+        .cal-grid {
+            display: grid;
+            grid-template-columns: repeat(7, minmax(0, 1fr));
+            gap: 3px;
+        }
+
+        .cal-grid > * { min-width: 0; }
+        .cal-grid > .col-12, .cal-grid > .col { grid-column: auto; }
+        .cal-grid > .col-12 { grid-column: 1 / -1; }
+
         .cal-weekdays {
             font-size: .7rem;
             font-weight: 700;
@@ -197,9 +209,9 @@
                                                 <div class="fw-semibold text-center" id="calMonthLabel">—</div>
                                                 <button type="button" class="btn btn-sm btn-outline-secondary" id="calNext" aria-label="Next month"><i class="bi bi-chevron-right"></i></button>
                                             </div>
-                                            <div class="row g-0 text-center cal-weekdays mb-1" id="calWeekdays"></div>
-                                            <div class="row g-0 text-center" id="calGrid" role="grid" aria-label="Available appointment dates"></div>
-                                            <div class="d-flex gap-2 mt-3 small">
+                                            <div class="cal-grid text-center cal-weekdays mb-1" id="calWeekdays"></div>
+                                            <div class="cal-grid text-center" id="calGrid" role="grid" aria-label="Available appointment dates"></div>
+                                            <div class="d-flex flex-wrap gap-2 mt-3 small">
                                                 <span class="legend-pill available"><span class="dot"></span>Available</span>
                                                 <span class="legend-pill full"><span class="dot"></span>Fully Booked</span>
                                                 <span class="legend-pill" style="background:#F1EEED;color:#6C6360;"><span class="dot" style="background:#B4B1B2;"></span>Dentist off duty</span>

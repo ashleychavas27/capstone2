@@ -41,35 +41,34 @@
     <div class="modal fade" id="sendSmsModal" tabindex="-1" aria-hidden="true">
         <div class="modal-dialog">
             <div class="modal-content">
-                <form method="POST" action="{{ route('sms.send') }}">
-                    @csrf
-                    <div class="modal-header">
-                        <h5 class="modal-title"><i class="bi bi-send me-2 text-primary"></i>Send SMS</h5>
-                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="bi bi-send me-2 text-primary"></i>Send SMS</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="smsPhone" class="form-label">Recipient phone <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" id="smsPhone" name="recipient_phone"
+                               placeholder="09XX XXX XXXX" list="patientPhones" required>
+                        <datalist id="patientPhones">
+                            @foreach($patients as $patient)
+                                <option value="{{ $patient->contact_no }}">{{ $patient->name }}</option>
+                            @endforeach
+                        </datalist>
                     </div>
-                    <div class="modal-body">
-                        <div class="mb-3">
-                            <label for="recipient_phone" class="form-label">Recipient phone <span class="text-danger">*</span></label>
-                            <input type="text" class="form-control" id="recipient_phone" name="recipient_phone"
-                                   placeholder="09XX XXX XXXX" list="patientPhones" required>
-                            <datalist id="patientPhones">
-                                @foreach($patients as $patient)
-                                    <option value="{{ $patient->contact_no }}">{{ $patient->name }}</option>
-                                @endforeach
-                            </datalist>
-                        </div>
-                        <div class="mb-2">
-                            <label for="message" class="form-label">Message <span class="text-danger">*</span></label>
-                            <textarea class="form-control" id="message" name="message" rows="4" maxlength="160"
-                                      placeholder="Your message (max 160 characters)" required></textarea>
-                            <div class="form-text text-end" id="charCount">0 / 160</div>
-                        </div>
+                    <div class="mb-2">
+                        <label for="smsMessage" class="form-label">Message <span class="text-danger">*</span></label>
+                        <textarea class="form-control" id="smsMessage" name="message" rows="4" maxlength="160"
+                                  placeholder="Your message (max 160 characters)" required></textarea>
+                        <div class="form-text text-end" id="charCount">0 / 160</div>
                     </div>
-                    <div class="modal-footer">
-                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                        <button type="submit" class="btn btn-primary"><i class="bi bi-send me-1"></i>Send</button>
-                    </div>
-                </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-primary" id="smsSendBtn">
+                        <i class="bi bi-send me-1"></i>Send
+                    </button>
+                </div>
             </div>
         </div>
     </div>
@@ -78,7 +77,7 @@
 @push('scripts')
 <script>
     $(function () {
-        $('#smsTable').DataTable({
+        const smsTable = $('#smsTable').DataTable({
             ...dtDefaults,
             order: [[0, 'desc']],
             ajax: {
@@ -92,7 +91,10 @@
                 { data: 'message', render: (d) => `<span class="d-inline-block text-truncate" style="max-width:380px" title="${d}">${d}</span>` },
                 {
                     data: 'status',
-                    render: (d) => `<span class="badge rounded-pill text-bg-${d === 'Failed' ? 'danger' : 'success'}">${d}</span>`
+                    render: (d) => {
+                        const color = d === 'Failed' ? 'danger' : (d === 'Mocked' ? 'secondary' : 'success');
+                        return `<span class="badge rounded-pill text-bg-${color}">${d}</span>`;
+                    }
                 },
                 { data: 'sent_at' }
             ],
@@ -100,9 +102,76 @@
         });
 
         // Character counter
-        const msg = document.getElementById('message');
-        msg.addEventListener('input', () => {
-            document.getElementById('charCount').textContent = `${msg.value.length} / 160`;
+        const msgEl = document.getElementById('smsMessage');
+        msgEl.addEventListener('input', () => {
+            document.getElementById('charCount').textContent = `${msgEl.value.length} / 160`;
+        });
+
+        // AJAX send — no full page reload, instant feedback
+        document.getElementById('smsSendBtn').addEventListener('click', async function () {
+            const phone   = document.getElementById('smsPhone').value.trim();
+            const message = msgEl.value.trim();
+
+            if (!phone || !message) {
+                Swal.fire({
+                    icon: 'warning',
+                    title: 'Missing fields',
+                    text: 'Please fill in both the phone number and the message.',
+                    confirmButtonColor: '#C89B27'
+                });
+                return;
+            }
+
+            const btn = this;
+            btn.disabled = true;
+            btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>Sending…';
+
+            try {
+                const formData = new FormData();
+                formData.append('_token', csrfToken);
+                formData.append('recipient_phone', phone);
+                formData.append('message', message);
+
+                const res = await fetch('{{ route('sms.send') }}', {
+                    method: 'POST',
+                    headers: { 'X-CSRF-TOKEN': csrfToken, 'Accept': 'application/json' },
+                    body: formData
+                });
+
+                // Controller redirects (302) after send — treat any non-5xx as success
+                if (res.status < 500) {
+                    bootstrap.Modal.getInstance(document.getElementById('sendSmsModal')).hide();
+                    document.getElementById('smsPhone').value = '';
+                    msgEl.value = '';
+                    document.getElementById('charCount').textContent = '0 / 160';
+                    smsTable.ajax.reload(null, false);
+
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'SMS Sent!',
+                        html: `Message dispatched to <strong>${phone}</strong> via Semaphore.<br><small class="text-muted">It should arrive within a few seconds.</small>`,
+                        confirmButtonColor: '#C89B27',
+                        timer: 5000,
+                        timerProgressBar: true
+                    });
+                } else {
+                    const data = await res.json().catch(() => ({}));
+                    const errMsg = data.errors
+                        ? Object.values(data.errors).flat().join(' ')
+                        : (data.message || 'SMS delivery failed. Verify the phone number and try again.');
+                    Swal.fire({ icon: 'error', title: 'Send Failed', text: errMsg, confirmButtonColor: '#C89B27' });
+                }
+            } catch (err) {
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Network Error',
+                    text: 'Could not reach the server. Please check your internet connection.',
+                    confirmButtonColor: '#C89B27'
+                });
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="bi bi-send me-1"></i>Send';
+            }
         });
     });
 </script>

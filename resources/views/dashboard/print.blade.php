@@ -11,9 +11,23 @@
         .report-title { border-bottom: 3px double #333; }
         .meta-row td { border: none; padding: .1rem .5rem; }
         .table th { background: #f1f3f5 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+
+        /* Phones: keep the A4 layout intact for printing, but let the header
+           stack and let the wide tables scroll instead of overflowing the page. */
+        @media screen and (max-width: 767.98px) {
+            .container-fluid { padding-inline: 1rem !important; }
+            .report-title { flex-direction: column; gap: .5rem; }
+            .report-title .text-end { text-align: left !important; }
+            /* The metric strip is one wide row; stack it so no label is cut off. */
+            .meta-row, .meta-row tbody, .meta-row tr { display: block; }
+            .meta-row td { display: block; }
+            .meta-row td.fw-bold { margin-top: .35rem; }
+        }
         @media print {
             .no-print { display: none !important; }
             @page { margin: 1.5cm; }
+            /* Let every column print; the scroll wrapper is for phones only. */
+            .table-responsive { overflow: visible !important; }
         }
     </style>
 </head>
@@ -31,15 +45,18 @@
         </div>
     </div>
 
-    <table class="table table-sm table-borderless meta-row mb-4">
-        <tr>
-            <td class="fw-bold">Registered Patients</td><td>{{ $metrics['totalPatients'] }}</td>
-            <td class="fw-bold">Upcoming Appointments</td><td>{{ $metrics['upcomingAppointments'] }}</td>
-            <td class="fw-bold">Appointments on {{ \Carbon\Carbon::parse($date)->format('M d') }}</td><td>{{ $schedule->count() }}</td>
-        </tr>
-    </table>
+    <div class="table-responsive">
+        <table class="table table-sm table-borderless meta-row mb-4">
+            <tr>
+                <td class="fw-bold">Registered Patients</td><td>{{ $metrics['totalPatients'] }}</td>
+                <td class="fw-bold">Upcoming Appointments</td><td>{{ $metrics['upcomingAppointments'] }}</td>
+                <td class="fw-bold">Appointments on {{ \Carbon\Carbon::parse($date)->format('M d') }}</td><td>{{ $schedule->count() }}</td>
+            </tr>
+        </table>
+    </div>
 
-    <table class="table table-bordered table-sm">
+    <div class="table-responsive">
+        <table class="table table-bordered table-sm">
         <thead>
             <tr>
                 <th>#</th>
@@ -69,6 +86,7 @@
             @endforelse
         </tbody>
     </table>
+    </div>
 
     <div class="small text-muted mt-4">
         {{ $schedule->count() }} appointment(s) total. This report is system-generated and requires no signature.

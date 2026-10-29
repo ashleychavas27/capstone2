@@ -49,19 +49,19 @@
                                     </div>
                                     <p class="small mb-2"><strong>Diagnosis:</strong> {{ $rx->diagnosis }}</p>
                                     <div class="table-responsive">
-                                        <table class="table table-sm align-middle mb-0">
+                                        <table class="table table-sm align-middle mb-0 table-stack">
                                             <thead class="table-light">
                                                 <tr><th>#</th><th>Medication</th><th>Dosage</th><th>Frequency</th><th>Duration</th><th>Instructions</th></tr>
                                             </thead>
                                             <tbody>
                                                 @foreach($rx->items as $i => $item)
                                                     <tr>
-                                                        <td>{{ $i + 1 }}</td>
-                                                        <td class="fw-semibold">{{ $item->drug_name }}</td>
-                                                        <td>{{ $item->dosage ?? '—' }}</td>
-                                                        <td>{{ $item->frequency ?? '—' }}</td>
-                                                        <td>{{ $item->duration ?? '—' }}</td>
-                                                        <td class="small">{{ $item->instructions ?? '—' }}</td>
+                                                        <td data-label="#">{{ $i + 1 }}</td>
+                                                        <td class="fw-semibold" data-label="Medication">{{ $item->drug_name }}</td>
+                                                        <td data-label="Dosage">{{ $item->dosage ?? '—' }}</td>
+                                                        <td data-label="Frequency">{{ $item->frequency ?? '—' }}</td>
+                                                        <td data-label="Duration">{{ $item->duration ?? '—' }}</td>
+                                                        <td class="small" data-label="Instructions">{{ $item->instructions ?? '—' }}</td>
                                                     </tr>
                                                 @endforeach
                                             </tbody>

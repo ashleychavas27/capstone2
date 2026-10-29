@@ -50,8 +50,10 @@
             },
             order: [[0, 'desc']],
             columns: [
-                { data: 'date_issued' },
-                { data: 'patient' },
+                // On phones the responsive plugin keeps Date and Patient and
+                // folds Dentist/Diagnosis/Meds/Actions into the expand row.
+                { data: 'date_issued', responsivePriority: 1 },
+                { data: 'patient', responsivePriority: 2 },
                 { data: 'dentist' },
                 { data: 'diagnosis' },
                 { data: 'medications', className: 'text-center' },

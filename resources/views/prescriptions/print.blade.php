@@ -16,6 +16,14 @@
             background: #fff;
             border: 1px solid #B4B1B2;
             padding: 2.5rem 3rem;
+            overflow-wrap: anywhere;
+        }
+
+        /* Phones: narrow the A4-style margins so the header grid keeps a
+           readable width instead of wrapping every word. */
+        @media (max-width: 767.98px) {
+            .sheet { margin: 1rem auto; padding: 1.25rem 1.15rem; }
+            .sig-line { min-width: 0; width: 100%; margin-top: 2rem; }
         }
 
         .clinic-name {
@@ -74,12 +82,12 @@
 
         {{-- Patient block --}}
         <div class="row small mb-4">
-            <div class="col-6"><strong>Patient:</strong> {{ $prescription->patient->name }}</div>
-            <div class="col-3"><strong>Age:</strong> {{ $prescription->patient->patientProfile?->age ?? '—' }}</div>
-            <div class="col-3"><strong>Date:</strong> {{ $prescription->date_issued->format('M d, Y') }}</div>
-            <div class="col-6"><strong>Address:</strong> {{ $prescription->patient->patientProfile?->address ?? '—' }}</div>
+            <div class="col-12 col-sm-6"><strong>Patient:</strong> {{ $prescription->patient->name }}</div>
+            <div class="col-6 col-sm-3"><strong>Age:</strong> {{ $prescription->patient->patientProfile?->age ?? '—' }}</div>
+            <div class="col-6 col-sm-3"><strong>Date:</strong> {{ $prescription->date_issued->format('M d, Y') }}</div>
+            <div class="col-12 col-sm-6"><strong>Address:</strong> {{ $prescription->patient->patientProfile?->address ?? '—' }}</div>
             @if($prescription->appointment)
-                <div class="col-6"><strong>Consultation:</strong> {{ $prescription->appointment->appointment_date->format('M d, Y') }} · {{ $prescription->appointment->service_type }}</div>
+                <div class="col-12 col-sm-6"><strong>Consultation:</strong> {{ $prescription->appointment->appointment_date->format('M d, Y') }} · {{ $prescription->appointment->service_type }}</div>
             @endif
         </div>
 

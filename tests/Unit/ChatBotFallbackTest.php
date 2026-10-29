@@ -13,6 +13,7 @@ class ChatBotFallbackTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+        config(['services.gemini.api_key' => '']);
         $this->bot = new ChatBotService;
     }
 

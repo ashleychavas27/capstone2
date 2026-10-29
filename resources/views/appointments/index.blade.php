@@ -139,9 +139,12 @@
             },
             order: [[0, 'desc'], [1, 'asc']],
             columns: [
-                { data: 'date' },
-                { data: 'time_slot' },
-                { data: 'patient' },
+                // Lower responsivePriority = kept on screen longer. On phones the
+                // responsive plugin drops Contact, Dentist, Service, Status and
+                // Actions first, so Date/Time/Patient stay readable.
+                { data: 'date', responsivePriority: 1 },
+                { data: 'time_slot', responsivePriority: 2 },
+                { data: 'patient', responsivePriority: 3 },
                 { data: 'patient_contact' },
                 { data: 'dentist' },
                 { data: 'service_type' },

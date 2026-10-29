@@ -220,6 +220,9 @@
             .app-sidebar { display: none; }
             /* The sidebar owns the brand on desktop; on mobile the navbar does. */
             body.has-sidebar .navbar-app .navbar-brand { display: flex; }
+            /* Keep the floating chat button from sitting on the last rows. */
+            .chat-fab { bottom: 3rem; }
+            .app-shell > main { padding-bottom: 5.5rem; }
         }
 
         @media print {
@@ -280,6 +283,59 @@
         .table > :not(caption) > * > * { vertical-align: middle; }
 
         .table-light { --bs-table-bg: var(--bg-alt); }
+
+        /* Compact tables on phones so wide records stay readable instead of
+           squeezing every column into a few characters. */
+        @media (max-width: 767.98px) {
+            .table { font-size: .86rem; }
+            .table > :not(caption) > * > * { padding: .5rem .4rem; }
+            .table > thead > tr > th { white-space: nowrap; font-size: .72rem; }
+
+
+
+            /* Opt-in stacked cards (add data-label to each cell). */
+            .table-stack { border-collapse: separate; border-spacing: 0; }
+            .table-stack > thead { display: none; }
+            .table-stack, .table-stack > tbody, .table-stack > tbody > tr,
+            .table-stack > tbody > tr > td { display: block; width: 100%; }
+            .table-stack > tbody > tr { padding: .6rem .85rem; border-bottom: 1px solid var(--silver); }
+            .table-stack > tbody > tr:last-child { border-bottom: 0; }
+            .table-stack > tbody > tr > td {
+                border: 0 !important;
+                padding: .2rem 0 !important;
+                text-align: right;
+                overflow-wrap: anywhere;
+            }
+            .table-stack > tbody > tr > td::before {
+                content: attr(data-label);
+                float: left;
+                margin-right: 1rem;
+                font-size: .68rem;
+                font-weight: 700;
+                letter-spacing: .05em;
+                text-transform: uppercase;
+                color: #9A8F8E;
+            }
+            .table-stack > tbody > tr > td:not([data-label])::before { content: none; }
+            .table-stack > tbody > tr > td[colspan] { text-align: center; }
+            .table-stack > tbody > tr > td[colspan]::before { content: none; }
+            .table-stack > tbody > tr.row-click:hover { background: var(--bg-alt); }
+        }
+
+        /* Very small phones (320px): the two-up metric cards cannot fit the
+           icon plus a full label, so give each card the whole row. */
+        @media (max-width: 359.98px) {
+            .metric-cards > [class*="col-"] { flex: 0 0 100%; max-width: 100%; }
+        }
+
+        /* Phones and tablets: dates and times read badly when broken over
+           three lines, so keep them on one line and let the responsive table
+           fold other columns into the expand row instead. */
+        @media (max-width: 991.98px) {
+            #appointmentsTable tbody td:nth-child(1),
+            #appointmentsTable tbody td:nth-child(2),
+            #prescriptionsTable tbody td:first-child { white-space: nowrap; }
+        }
 
         input, select, textarea, .form-control, .form-select, input[type="date"] {
             font-family: 'Inter', system-ui, -apple-system, sans-serif !important;
@@ -414,7 +470,9 @@
             right: 1.5rem;
             bottom: 5.25rem;
             z-index: 1080;
-            width: min(360px, calc(100vw - 2.5rem));
+            /* 100% (not 100vw) so the panel stays inside the viewport when a
+               desktop scrollbar is present — otherwise it spills off-screen. */
+            width: min(360px, calc(100% - 3rem));
             height: 440px;
             display: none;
             flex-direction: column;
@@ -714,13 +772,6 @@
 
 <div class="app-shell">
 <main class="container py-4">
-    @if(session('success'))
-        <div class="alert alert-success alert-dismissible fade show no-print" role="alert">
-            <i class="bi bi-check-circle me-1"></i>{{ session('success') }}
-            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-        </div>
-    @endif
-
     @if($errors->any())
         <div class="alert alert-danger alert-dismissible fade show no-print" role="alert">
             <i class="bi bi-exclamation-triangle me-1"></i>
@@ -742,30 +793,11 @@
 </footer>
 </div>{{-- /.app-shell --}}
 
-{{-- Toast container for AJAX feedback --}}
-<div class="toast-container position-fixed bottom-0 end-0 p-3" id="toastContainer"></div>
-
-{{-- Shared confirmation dialog (replaces browser confirm popups) --}}
-<div class="modal fade" id="confirmModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-sm modal-dialog-centered">
-        <div class="modal-content">
-            <div class="modal-body text-center pt-4">
-                <div class="stat-icon bg-light text-primary mx-auto mb-3"><i class="bi bi-question-circle"></i></div>
-                <p class="mb-0" id="confirmMessage">Are you sure?</p>
-            </div>
-            <div class="modal-footer border-0 justify-content-center pb-4">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                <button type="button" class="btn btn-primary" id="confirmOkBtn">Yes, continue</button>
-            </div>
-        </div>
-    </div>
-</div>
-
 {{-- Chat bot assistant --}}
 @auth
     <div class="chat-panel no-print" id="chatPanel" aria-hidden="true">
         <div class="chat-header">
-            <i class="bi bi-chat-heart"></i> Clinic Assistant
+            <i class="bi bi-chat-heart"></i> Molar
             <button type="button" class="btn-close btn-close-white ms-auto" id="chatClose" aria-label="Close chat"></button>
         </div>
         <div class="chat-messages" id="chatMessages">
@@ -778,13 +810,14 @@
         </form>
     </div>
 
-    <button type="button" class="chat-fab no-print" id="chatFab" title="Clinic Assistant" aria-label="Open clinic assistant chat">
+    <button type="button" class="chat-fab no-print" id="chatFab" title="Molar" aria-label="Open Molar chat">
         <i class="bi bi-chat-dots"></i>
     </button>
 @endauth
 
 {{-- Bootstrap 5 bundle --}}
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 {{-- jQuery + DataTables --}}
 <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
 <script src="https://cdn.datatables.net/1.13.8/js/jquery.dataTables.min.js"></script>
@@ -858,42 +891,55 @@
         return data;
     }
 
-    /** Bootstrap toast notification. */
+    /** SweetAlert toast notification for asynchronous actions. */
     function showToast(message, type = 'success') {
-        const colors = { success: 'text-bg-success', danger: 'text-bg-danger', warning: 'text-bg-warning', info: 'text-bg-info' };
-        const icons = { success: 'bi-check-circle', danger: 'bi-x-circle', warning: 'bi-exclamation-triangle', info: 'bi-info-circle' };
-        const el = document.createElement('div');
-        el.className = `toast align-items-center border-0 ${colors[type] || colors.info}`;
-        el.setAttribute('role', 'alert');
-        el.innerHTML = `
-            <div class="d-flex">
-                <div class="toast-body"><i class="bi ${icons[type] || icons.info} me-2"></i>${message}</div>
-                <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
-            </div>`;
-        document.getElementById('toastContainer').appendChild(el);
-        const toast = new bootstrap.Toast(el, { delay: 4000 });
-        toast.show();
-        el.addEventListener('hidden.bs.toast', () => el.remove());
+        const icons = { success: 'success', danger: 'error', warning: 'warning', info: 'info' };
+        Swal.fire({
+            toast: true,
+            position: 'top-end',
+            icon: icons[type] || 'info',
+            title: message,
+            showConfirmButton: false,
+            timer: 4000,
+            timerProgressBar: true
+        });
     }
 
-    /** Confirm-then-act helper: shows the in-app dialog, runs action() on confirm. */
+    /** Confirm-then-act helper for destructive or consequential actions. */
     function confirmAction(message, action) {
-        const modalEl = document.getElementById('confirmModal');
-        const okBtn = document.getElementById('confirmOkBtn');
-        document.getElementById('confirmMessage').textContent = message;
-
-        const modal = bootstrap.Modal.getOrCreateInstance(modalEl);
-
-        const onOk = () => {
-            modalEl.removeEventListener('hidden.bs.modal', onDismiss);
-            modal.hide();
-            action();
-        };
-        const onDismiss = () => okBtn.removeEventListener('click', onOk);
-        okBtn.addEventListener('click', onOk, { once: true });
-        modalEl.addEventListener('hidden.bs.modal', onDismiss, { once: true });
-        modal.show();
+        Swal.fire({
+            icon: 'warning',
+            text: message,
+            showCancelButton: true,
+            confirmButtonText: 'Yes, continue',
+            cancelButtonText: 'Cancel',
+            confirmButtonColor: '#C89B27',
+            reverseButtons: true,
+            focusCancel: true
+        }).then((result) => {
+            if (result.isConfirmed) {
+                action();
+            }
+        });
     }
+
+    @if(session('success'))
+        Swal.fire({
+            icon: 'success',
+            title: 'Success',
+            text: @json(session('success')),
+            confirmButtonColor: '#C89B27'
+        });
+    @endif
+
+    @if(session('error'))
+        Swal.fire({
+            icon: 'error',
+            title: 'Error',
+            text: @json(session('error')),
+            confirmButtonColor: '#C89B27'
+        });
+    @endif
 
     /** Serialize a form to a plain object (for JSON body). */
     function formToObject(form) {

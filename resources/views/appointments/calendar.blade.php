@@ -144,6 +144,62 @@
             border-radius: 50%;
             margin-right: .35rem;
         }
+
+        /* Phones: stack the toolbar so the view buttons and the month title
+           stop pushing each other off-screen, and shrink the month grid. */
+        @media (max-width: 767.98px) {
+            #calendar { padding: .85rem .6rem; }
+
+            .fc .fc-toolbar.fc-header-toolbar {
+                flex-direction: column;
+                gap: .55rem;
+                margin-bottom: .8rem;
+            }
+
+            .fc .fc-toolbar-chunk {
+                width: 100%;
+                justify-content: center;
+                flex-wrap: wrap;
+            }
+
+            .fc .fc-toolbar-title {
+                font-size: 1.1rem;
+                text-align: center;
+            }
+
+            .fc .fc-button-primary {
+                padding: .32rem .55rem !important;
+                font-size: .78rem;
+            }
+
+            .fc .fc-prev-button, .fc .fc-next-button {
+                padding: .32rem .45rem !important;
+                min-width: 30px;
+            }
+
+            .fc .fc-col-header-cell-cushion {
+                font-size: .62rem;
+                letter-spacing: .02em;
+                padding: 6px 0 !important;
+            }
+
+            .fc .fc-daygrid-day-number {
+                font-size: .72rem;
+                padding: 3px 5px !important;
+            }
+
+            .fc-daygrid-event {
+                margin: 1px 2px !important;
+                padding: 2px 4px !important;
+                border-radius: 4px !important;
+            }
+
+            /* Month cells are ~45px wide here; keep the start time legible and
+               leave the patient name to the event details modal. Week, Day and
+               List views have room for both, so this must not apply to them. */
+            .fc-dayGridMonth-view .fc-event-pill .event-time { font-size: .58rem; }
+            .fc-dayGridMonth-view .fc-event-pill .event-patient { display: none; }
+        }
     </style>
 @endpush
 
@@ -243,11 +299,16 @@
                 const patient = p.patient || 'Patient';
                 const service = p.service_type || '';
 
+                // Month cells are only ~45px wide on a phone, so drop the
+                // meridiem there: the full time stays in the tooltip/modal.
+                const isPhone = window.matchMedia('(max-width: 767.98px)').matches;
+                const timeLabel = isPhone ? time.replace(/\s*(AM|PM)$/i, '') : time;
+
                 const container = document.createElement('div');
                 container.className = 'fc-event-pill';
                 container.title = `${time} · ${patient} (${service}) - ${p.status}`;
                 container.innerHTML = `
-                    <span class="event-time">${escapeHtml(time)}</span>
+                    <span class="event-time">${escapeHtml(timeLabel)}</span>
                     <span class="event-patient">${escapeHtml(patient)}</span>
                 `;
                 return { domNodes: [container] };

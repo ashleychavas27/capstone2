@@ -17,6 +17,14 @@
             background: #fff;
             border: 1px solid #B4B1B2;
             padding: 2.5rem 3rem;
+            overflow-wrap: anywhere;
+        }
+
+        /* Phones: the sheet is a report built for A4, so shrink the margins
+           instead of squeezing the header columns to a few characters. */
+        @media (max-width: 767.98px) {
+            .sheet { margin: 1rem auto; padding: 1.25rem 1.15rem; font-size: .8rem; }
+            .sheet .row > div { margin-bottom: .25rem; }
         }
 
         .clinic-name {
@@ -54,10 +62,10 @@
         {{-- Patient information --}}
         <h6 class="section fw-bold mb-3">PATIENT INFORMATION</h6>
         <div class="row mb-4">
-            <div class="col-4"><strong>Name:</strong> {{ $patient->name }}</div>
-            <div class="col-2"><strong>Age:</strong> {{ $patient->patientProfile?->age ?? '—' }}</div>
-            <div class="col-3"><strong>Contact:</strong> {{ $patient->contact_no ?? '—' }}</div>
-            <div class="col-3"><strong>Email:</strong> {{ $patient->email }}</div>
+            <div class="col-12 col-sm-4"><strong>Name:</strong> {{ $patient->name }}</div>
+            <div class="col-6 col-sm-2"><strong>Age:</strong> {{ $patient->patientProfile?->age ?? '—' }}</div>
+            <div class="col-6 col-sm-3"><strong>Contact:</strong> {{ $patient->contact_no ?? '—' }}</div>
+            <div class="col-12 col-sm-3"><strong>Email:</strong> {{ $patient->email }}</div>
             <div class="col-12 mt-1"><strong>Address:</strong> {{ $patient->patientProfile?->address ?? '—' }}</div>
             <div class="col-12 mt-1"><strong>Medical history:</strong> {{ $patient->patientProfile?->medical_history ?: 'None recorded.' }}</div>
         </div>

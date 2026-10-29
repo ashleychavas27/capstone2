@@ -18,7 +18,7 @@
 
 
     {{-- Metric cards --}}
-    <div class="row g-3 mb-4">
+    <div class="row g-3 mb-4 metric-cards">
         @php
             $statLinks = [
                 'totalPatients' => auth()->user()->isStaff() ? route('patients.index') : route('appointments.book'),
@@ -98,7 +98,7 @@
                 </div>
                 <div class="card-body p-0">
                     <div class="table-responsive">
-                        <table class="table table-hover align-middle mb-0">
+                        <table class="table table-hover align-middle mb-0 table-stack">
                             <thead class="table-light">
                                 <tr>
                                     <th>Time</th>
@@ -112,8 +112,8 @@
                                 @forelse($schedule as $appt)
                                     <tr class="{{ auth()->user()->isStaff() ? 'row-click' : '' }}" data-href="{{ route('patients.show', $appt->patient) }}"
                                         {{ auth()->user()->isStaff() ? 'title="View patient record"' : '' }}>
-                                        <td class="fw-semibold">{{ $appt->formatted_slot }}</td>
-                                        <td>
+                                        <td class="fw-semibold" data-label="Time">{{ $appt->formatted_slot }}</td>
+                                        <td data-label="Patient">
                                             @if(auth()->user()->isStaff())
                                                 <a href="{{ route('patients.show', $appt->patient) }}" class="text-decoration-none">{{ $appt->patient->name ?? '—' }}</a>
                                             @else
@@ -121,10 +121,10 @@
                                             @endif
                                         </td>
                                         @unless(auth()->user()->isDentist())
-                                            <td>{{ $appt->dentist->name ?? 'Unassigned' }}</td>
+                                            <td data-label="Dentist">{{ $appt->dentist->name ?? 'Unassigned' }}</td>
                                         @endunless
-                                        <td>{{ $appt->service_type }}</td>
-                                        <td>
+                                        <td data-label="Service">{{ $appt->service_type }}</td>
+                                        <td data-label="Status">
                                             @include('partials.status-badge', ['status' => $appt->status])
                                         </td>
                                     </tr>
