@@ -84,31 +84,35 @@
                                     @endforeach
                                 </select>
                             </div>
+                            <div class="col-md-12">
+                                <label class="form-label">Service type <span class="text-danger">*</span></label>
+                                <select name="service_type" class="form-select" id="staffService" required>
+                                    <option value="">Select procedure…</option>
+                                    @foreach(\App\Models\Appointment::onlineProcedures() as $procedure)
+                                        <option value="{{ $procedure['name'] }}">
+                                            {{ $procedure['name'] }} — {{ $procedure['display'] }}
+                                        </option>
+                                    @endforeach
+                                    @foreach(\App\Models\Appointment::byAppointmentProcedures() as $procedure)
+                                        <option value="{{ $procedure['name'] }}">
+                                            {{ $procedure['name'] }} — {{ $procedure['display'] }}, {{ \App\Models\Appointment::minutesLabel(\App\Models\Appointment::durationFor($procedure['name'])) }} reserved
+                                        </option>
+                                    @endforeach
+                                </select>
+                                <div class="form-text">The procedure's estimated duration decides how much time is blocked, so the time slots below are filtered to what actually fits.</div>
+                            </div>
                             <div class="col-md-6">
                                 <label class="form-label">Date <span class="text-danger">*</span></label>
-                                <input type="date" name="appointment_date" class="form-control" min="{{ now()->toDateString() }}" required>
+                                <input type="date" name="appointment_date" class="form-control" id="staffDate"
+                                       min="{{ now()->toDateString() }}" required>
                             </div>
                             <div class="col-md-6">
                                 <label class="form-label">Time slot <span class="text-danger">*</span></label>
-                                <select name="time_slot" class="form-select" required>
-                                    @foreach(\App\Models\Appointment::slots() as $slot)
-                                        <option value="{{ $slot }}">{{ \App\Models\Appointment::timeLabel($slot) }}</option>
-                                    @endforeach
+                                <select name="time_slot" class="form-select" id="staffTimeSlot" required>
+                                    <option value="">Select patient, service and date first…</option>
                                 </select>
-                                <div class="form-text">Clinic hours: {{ \App\Models\Appointment::hoursLabel() }} (lunch {{ \App\Models\Appointment::lunchLabel() }}).</div>
-                            </div>
-                            <div class="col-md-12">
-                                <label class="form-label">Service type <span class="text-danger">*</span></label>
-                                <input type="text" name="service_type" class="form-control" list="serviceList"
-                                       placeholder="e.g. {{ \App\Models\Appointment::procedures()[0]['name'] ?? 'Dental Cleaning' }}" required>
-                                <datalist id="serviceList">
-                                    @foreach(\App\Models\Appointment::procedures() as $procedure)
-                                        <option value="{{ $procedure['name'] }}">
-                                    @endforeach
-                                </datalist>
-                                <div class="form-text">
-                                    Procedures with an estimate block that much time:
-                                    {{ collect(\App\Models\Appointment::procedures())->map(fn ($p) => $p['name'].' ('.$p['display'].')')->implode(' · ') }}
+                                <div class="form-text" id="staffSlotHint">
+                                    Clinic hours: {{ \App\Models\Appointment::hoursLabel() }} (lunch {{ \App\Models\Appointment::lunchLabel() }}).
                                 </div>
                             </div>
                         </div>
@@ -186,6 +190,86 @@
                 ...dtDefaults.language,
                 emptyTable: 'No appointments match the current filters.'
             }
+        });
+
+        // ---- New appointment: time slots follow the chosen procedure ----
+        // A 2-hour surgery cannot start at 3:30 PM, so the slot list is rebuilt
+        // from the server's availability (which already knows each procedure's
+        // duration, the clinic hours and the lunch break).
+        const staffService = document.getElementById('staffService');
+        const staffDate = document.getElementById('staffDate');
+        const staffDentist = document.getElementById('staffDentistSelect');
+        const staffSlot = document.getElementById('staffTimeSlot');
+        const staffHint = document.getElementById('staffSlotHint');
+        const staffSubmit = document.querySelector('#createAppointmentModal button[type="submit"]');
+        let slotTimer = null;
+        // Availability requests are async; only the newest one may touch the
+        // slot list, otherwise a slow earlier request overwrites the answer for
+        // the procedure the staff member has just picked.
+        let staffReqId = 0;
+
+        function resetStaffSlots(message) {
+            staffSlot.innerHTML = `<option value="">${message}</option>`;
+            staffSlot.disabled = true;
+            if (staffSubmit) staffSubmit.disabled = true;
+        }
+
+        async function loadStaffSlots() {
+            if (!staffService.value || !staffDate.value) {
+                resetStaffSlots('Select service and date first…');
+                return;
+            }
+
+            const requestId = ++staffReqId;
+            staffSlot.innerHTML = '<option value="">Checking availability…</option>';
+            staffSlot.disabled = true;
+            if (staffSubmit) staffSubmit.disabled = true;
+
+            const params = new URLSearchParams({ date: staffDate.value, service_type: staffService.value });
+            if (staffDentist.value) params.set('dentist_id', staffDentist.value);
+
+            try {
+                const res = await apiFetch(`{{ route('appointments.available-slots') }}?${params}`);
+
+                if (requestId !== staffReqId) return;
+
+                if (!res.slots.length) {
+                    resetStaffSlots(res.reason || 'No free slot for this procedure on that date.');
+                    staffHint.textContent = res.reason || 'Pick another date or dentist.';
+                    return;
+                }
+
+                staffSlot.innerHTML = res.slots
+                    .map(s => `<option value="${s}">${formatStaffTime(s)}</option>`)
+                    .join('');
+                staffSlot.disabled = false;
+                if (staffSubmit) staffSubmit.disabled = false;
+                staffHint.textContent = `Reserving ${res.duration_label || res.duration_minutes + ' minutes'} · ${res.slots.length} slot${res.slots.length === 1 ? '' : 's'} free.`;
+            } catch (e) {
+                if (requestId !== staffReqId) return;
+                resetStaffSlots('Could not load slots.');
+                staffHint.textContent = e.message;
+            }
+        }
+
+        function formatStaffTime(slot) {
+            const [h, m] = slot.split(':').map(Number);
+            const suffix = h >= 12 ? 'PM' : 'AM';
+            const hour = h % 12 === 0 ? 12 : h % 12;
+            return `${hour}:${String(m).padStart(2, '0')} ${suffix}`;
+        }
+
+        [staffService, staffDate, staffDentist].forEach((el) => {
+            el?.addEventListener('change', () => {
+                clearTimeout(slotTimer);
+                slotTimer = setTimeout(loadStaffSlots, 200);
+            });
+        });
+
+        // Reopening the modal should not keep slots from a previous attempt.
+        document.getElementById('createAppointmentModal')?.addEventListener('show.bs.modal', () => {
+            resetStaffSlots('Select service and date first…');
+            staffHint.textContent = 'Clinic hours: {{ \App\Models\Appointment::hoursLabel() }} (lunch {{ \App\Models\Appointment::lunchLabel() }}).';
         });
 
         $('#filterStatus, #filterDate').on('change', () => table.ajax.reload());

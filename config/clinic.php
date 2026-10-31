@@ -51,9 +51,10 @@ return [
     | Dental procedures and estimated duration
     |--------------------------------------------------------------------------
     |
-    | minutes = null means "by appointment": the clinic books these itself and
-    | they are not offered for online self-booking (`online` => false), because
-    | they need a longer or multi-visit arrangement.
+    | `online => false` means "by appointment": the clinic books these itself and
+    | patients cannot self-book them. They still reserve real time on the
+    | schedule, so `minutes` is set for every procedure — otherwise a long
+    | procedure (surgery, braces) would silently reserve only 30 minutes.
     |
     | A procedure that says "1 to 1.5 hours" reserves the longer time so the
     | dentist cannot be double-booked into a session that overruns.
@@ -100,21 +101,21 @@ return [
             'name' => 'Dental Surgery',
             'local' => 'Surgery',
             'display' => 'By appointment',
-            'minutes' => null,
+            'minutes' => 120,
             'online' => false,
         ],
         [
             'name' => 'Braces Installation',
             'local' => 'Takod ka Braces',
             'display' => 'By appointment',
-            'minutes' => null,
+            'minutes' => 120,
             'online' => false,
         ],
         [
             'name' => 'Root Canal Treatment',
             'local' => 'Root Canal',
             'display' => 'By appointment',
-            'minutes' => null,
+            'minutes' => 90,
             'online' => false,
         ],
     ],
@@ -126,9 +127,9 @@ return [
     |
     | The client's duration sheet does not cover these, but they were already
     | bookable before it arrived (and existing records use these names), so they
-    | stay on the menu. `minutes` is null because the client gave no estimate —
-    | `clinic.default_duration` is used until the clinic supplies one, and the
-    | procedure table shows "Duration not specified" for them.
+    | stay on the menu. The estimates below are the clinic's usual chair time;
+    | edit the number here and both the booking slots and the printed schedule
+    | follow it.
     |
     */
 
@@ -136,29 +137,29 @@ return [
         [
             'name' => 'General Checkup',
             'local' => 'Checkup',
-            'display' => 'Duration not specified',
-            'minutes' => null,
+            'display' => '30 minutes',
+            'minutes' => 30,
             'online' => true,
         ],
         [
             'name' => 'Dental Crown',
             'local' => 'Crown',
-            'display' => 'Duration not specified',
-            'minutes' => null,
+            'display' => '1 hour',
+            'minutes' => 60,
             'online' => true,
         ],
         [
             'name' => 'Braces / Orthodontic Consultation',
             'local' => 'Consultation',
-            'display' => 'Duration not specified',
-            'minutes' => null,
+            'display' => '30 minutes',
+            'minutes' => 30,
             'online' => true,
         ],
         [
             'name' => 'Teeth Whitening',
             'local' => 'Whitening',
-            'display' => 'Duration not specified',
-            'minutes' => null,
+            'display' => '1.5 hours',
+            'minutes' => 90,
             'online' => true,
         ],
     ],

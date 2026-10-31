@@ -61,6 +61,10 @@
                     data: null,
                     className: 'text-end no-print',
                     orderable: false,
+                    // Kept on phones: printing the reseta is the main reason a
+                    // secretary opens this list, so it must not hide behind the +
+                    // expander.
+                    responsivePriority: 1,
                     render: (d) => `
                         <div class="btn-group btn-group-sm">
                             <a class="btn btn-outline-secondary" href="/prescriptions/${d.id}/print" target="_blank" title="Print reseta">

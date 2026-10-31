@@ -22,7 +22,19 @@ class RecordController extends Controller
             ->orderByDesc('time_slot')
             ->get();
 
-        return view('records.index', ['patient' => $patient, 'appointments' => $appointments]);
+        // Prescriptions the dentist issued without linking a visit still belong
+        // to the patient, so they are listed separately and stay printable.
+        $standalonePrescriptions = $patient->prescriptions()
+            ->with(['dentist', 'items', 'appointment'])
+            ->whereNull('appointment_id')
+            ->orderByDesc('date_issued')
+            ->get();
+
+        return view('records.index', [
+            'patient' => $patient,
+            'appointments' => $appointments,
+            'standalonePrescriptions' => $standalonePrescriptions,
+        ]);
     }
 
     /**

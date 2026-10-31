@@ -215,11 +215,18 @@ class AppointmentController extends Controller
         $minutes = $service !== null ? Appointment::durationFor($service) : null;
         $slots = Appointment::freeSlots($dentistId, $data['date'], $minutes);
 
+        // "By appointment" procedures (surgery, braces) still block real chair
+        // time, so the label shown for the reservation is the actual duration.
+        $durationLabel = $service !== null ? Appointment::durationLabel($service) : null;
+        if ($minutes !== null && ($durationLabel === null || str_contains($durationLabel, 'By appointment'))) {
+            $durationLabel = Appointment::minutesLabel($minutes);
+        }
+
         return response()->json([
             'date' => $data['date'],
             'slots' => $slots,
             'duration_minutes' => $minutes,
-            'duration_label' => $service !== null ? Appointment::durationLabel($service) : null,
+            'duration_label' => $durationLabel,
             'reason' => $slots ? null : $this->unavailableReason($dentistId, $data['date']),
         ]);
     }

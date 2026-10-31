@@ -2,6 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Prescription #{{ $prescription->id }} · {{ $prescription->patient->name }}</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <style>
@@ -37,6 +38,15 @@
             font-size: 3rem;
             color: #736261;
             line-height: 1;
+            white-space: nowrap;
+        }
+
+        /* The "x" of Rx sits smaller and a little lower, like the Latin
+           recipe sign on a written reseta. */
+        .rx-symbol .rx-x {
+            font-size: .55em;
+            font-style: italic;
+            vertical-align: -.15em;
         }
 
         .med-item { margin-bottom: 1rem; }
@@ -59,15 +69,22 @@
     </style>
 </head>
 <body>
-    <div class="text-end mb-3 no-print" style="max-width: 800px; margin-inline: auto;">
+    <div class="d-flex flex-wrap justify-content-end gap-2 mb-3 no-print" style="max-width: 800px; margin-inline: auto;">
         @auth
             @if(auth()->user()->isStaff())
-                <a href="{{ route('prescriptions.index') }}" class="btn btn-sm btn-outline-secondary">Back</a>
+                <a href="{{ route('prescriptions.index') }}" class="btn btn-sm btn-outline-secondary" id="rxBackLink">
+                    <i class="bi bi-arrow-left me-1"></i>Back
+                </a>
+            @else
+                <a href="{{ route('records.index') }}" class="btn btn-sm btn-outline-secondary" id="rxBackLink">
+                    <i class="bi bi-arrow-left me-1"></i>Back to My Records
+                </a>
             @endif
         @endauth
         <button type="button" onclick="printReport()" class="btn btn-sm btn-primary">
-            <i class="bi bi-printer me-1"></i>Print
+            <i class="bi bi-printer me-1"></i>Print / Save as PDF
         </button>
+        <button type="button" onclick="closePage()" class="btn btn-sm btn-outline-secondary">Close</button>
     </div>
 
     <div class="sheet">
@@ -96,7 +113,7 @@
 
         {{-- Rx body --}}
         <div class="d-flex gap-3">
-            <span class="rx-symbol">&#8477;</span>
+            <span class="rx-symbol" aria-label="Prescription">R<span class="rx-x">x</span></span>
             <div class="flex-grow-1 pt-2">
                 @forelse($prescription->items as $i => $item)
                     <div class="med-item ps-2" style="border-left: 3px solid #B4B1B2;">
@@ -147,6 +164,26 @@
         } catch (e) {
             window.alert('This browser cannot open the print dialog.\n\nOpen this page in Chrome or Safari, then use the browser menu and choose Print or Share > Print.');
         }
+    }
+
+    // In-app browsers (Messenger, Facebook) refuse window.close(), so the page
+    // falls back to the normal route instead of leaving the user on a dead tab.
+    function closePage() {
+        try {
+            window.close();
+        } catch (e) {
+            // ignored — fall through to the in-app redirect below
+        }
+
+        setTimeout(function () {
+            if (window.closed) return;
+            const back = document.getElementById('rxBackLink');
+            if (back) {
+                window.location.href = back.getAttribute('href');
+            } else if (window.history.length > 1) {
+                window.history.back();
+            }
+        }, 250);
     }
 </script>
 </body>

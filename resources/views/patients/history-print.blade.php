@@ -2,6 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Diagnostic History · {{ $patient->name }}</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <style>
@@ -42,11 +43,14 @@
     </style>
 </head>
 <body>
-    <div class="text-end mb-3 no-print" style="max-width: 900px; margin-inline: auto;">
-        <a href="{{ route('patients.show', $patient) }}" class="btn btn-sm btn-outline-secondary">Back</a>
+    <div class="d-flex flex-wrap justify-content-end gap-2 mb-3 no-print" style="max-width: 900px; margin-inline: auto;">
+        <a href="{{ route('patients.show', $patient) }}" class="btn btn-sm btn-outline-secondary" id="historyBackLink">
+            <i class="bi bi-arrow-left me-1"></i>Back
+        </a>
         <button type="button" onclick="printReport()" class="btn btn-sm btn-primary">
-            <i class="bi bi-printer me-1"></i>Print
+            <i class="bi bi-printer me-1"></i>Print / Save as PDF
         </button>
+        <button type="button" onclick="closePage()" class="btn btn-sm btn-outline-secondary">Close</button>
     </div>
 
     <div class="sheet">
@@ -116,6 +120,26 @@
         } catch (e) {
             window.alert('This browser cannot open the print dialog.\n\nOpen this page in Chrome or Safari, then use the browser menu and choose Print or Share > Print.');
         }
+    }
+
+    // In-app browsers (Messenger, Facebook) refuse window.close(), so the page
+    // falls back to the patient record instead of leaving a dead tab.
+    function closePage() {
+        try {
+            window.close();
+        } catch (e) {
+            // ignored — fall through to the in-app redirect below
+        }
+
+        setTimeout(function () {
+            if (window.closed) return;
+            const back = document.getElementById('historyBackLink');
+            if (back) {
+                window.location.href = back.getAttribute('href');
+            } else if (window.history.length > 1) {
+                window.history.back();
+            }
+        }, 250);
     }
 </script>
 </body>
