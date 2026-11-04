@@ -195,9 +195,13 @@
                                             @foreach(\App\Models\Appointment::onlineProcedures() as $procedure)
                                                 <option value="{{ $procedure['name'] }}">{{ $procedure['name'] }} — {{ $procedure['display'] }}</option>
                                             @endforeach
-                                            @foreach(\App\Models\Appointment::byAppointmentProcedures() as $procedure)
-                                                <option value="" disabled>{{ $procedure['name'] }} — by appointment, contact the clinic</option>
-                                            @endforeach
+                                            {{-- "By appointment" procedures are hidden from patients; staff
+                                                 still need them to record sessions arranged at the clinic. --}}
+                                            @if(auth()->user()->isStaff())
+                                                @foreach(\App\Models\Appointment::byAppointmentProcedures() as $procedure)
+                                                    <option value="" disabled>{{ $procedure['name'] }} — by appointment, contact the clinic</option>
+                                                @endforeach
+                                            @endif
                                         </select>
                                         <div class="form-text">The procedure's estimated duration is reserved on the schedule.</div>
                                     </div>
@@ -207,7 +211,8 @@
                                         <select class="form-select" id="dentist_id" name="dentist_id" required>
                                             <option value="">Select dentist…</option>
                                             @foreach($dentists as $d)
-                                                <option value="{{ $d->id }}">Dr. {{ $d->name }} — {{ \App\Models\Appointment::dutyDayLabel($d) }}</option>
+                                                {{-- Revision: dentist selection shows the name only. --}}
+                                                <option value="{{ $d->id }}">Dr. {{ $d->name }}</option>
                                             @endforeach
                                         </select>
                                     </div>
@@ -269,7 +274,7 @@
                 {{-- Live booking summary --}}
                 <div class="col-lg-4">
                     <div class="card sticky-top" style="top: 5.5rem;">
-                        <div class="card-header"><i class="bi bi-card-checklist me-2 text-primary"></i>Booking Summary</div>
+                        <div class="card-header"><i class="bi bi-card-checklist me-2 text-primary"></i>Appointment Summary</div>
                         <div class="card-body">
                             <dl class="row mb-0 small" id="summaryList">
                                 <dt class="col-5 text-muted fw-normal">Procedure</dt><dd class="col-7" data-summary="service">—</dd>
@@ -283,7 +288,7 @@
                             </dl>
 
                             <button type="submit" form="bookingForm" class="btn btn-primary w-100 mt-3" id="submitBtn" disabled>
-                                <i class="bi bi-calendar-check me-1"></i>Confirm Booking
+                                <i class="bi bi-calendar-check me-1"></i>Confirm Appointment
                             </button>
                             <p class="text-muted small text-center mb-0 mt-2">
                                 @if(auth()->user()->isStaff())
@@ -325,9 +330,11 @@
                                 </tbody>
                             </table>
                         </div>
-                        <div class="card-footer small text-muted">
-                            Procedures marked <em>By appointment</em> are scheduled by the clinic — please contact us and we will arrange the session.
-                        </div>
+                        @if(auth()->user()->isStaff())
+                            <div class="card-footer small text-muted">
+                                Procedures marked <em>By appointment</em> are scheduled by the clinic — please contact us and we will arrange the session.
+                            </div>
+                        @endif
                     </div>
                 </div>
                 <div class="col-lg-4">
@@ -926,8 +933,13 @@
             bookingForm.reset();
             renderSlotsReset();
 
-            // Refresh "My appointments" list without a full page reload.
-            setTimeout(() => location.reload(), 2500);
+            @if(auth()->user()->isStaff())
+                // Staff: refresh the on-page list without a full reload.
+                setTimeout(() => location.reload(), 2500);
+            @else
+                // Patients: land on the Dashboard once the booking is confirmed.
+                setTimeout(() => { window.location.href = '{{ route('dashboard') }}'; }, 1200);
+            @endif
         } catch (err) {
             showToast(err.message, err.status === 409 ? 'warning' : 'danger');
             bookingError.textContent = err.message;
@@ -935,7 +947,7 @@
             refreshSlots(); // refresh availability in real time
         } finally {
             submitBtn.disabled = true;
-            submitBtn.innerHTML = '<i class="bi bi-calendar-check me-1"></i>Confirm Booking';
+            submitBtn.innerHTML = '<i class="bi bi-calendar-check me-1"></i>Confirm Appointment';
         }
     });
 

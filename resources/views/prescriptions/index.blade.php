@@ -67,6 +67,9 @@
                     responsivePriority: 1,
                     render: (d) => `
                         <div class="btn-group btn-group-sm">
+                            <a class="btn btn-outline-primary" href="/prescriptions/${d.id}/download" title="Save File">
+                                <i class="bi bi-download"></i>
+                            </a>
                             <a class="btn btn-outline-secondary" href="/prescriptions/${d.id}/print" target="_blank" title="Print reseta">
                                 <i class="bi bi-printer"></i>
                             </a>

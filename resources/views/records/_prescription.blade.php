@@ -4,9 +4,10 @@
         <h6 class="fw-bold mb-0 text-primary">
             <i class="bi bi-file-earmark-text me-1"></i>e-Prescription · {{ $rx->date_issued->format('M d, Y') }}
         </h6>
-        <a href="{{ route('records.prescription.print', $rx) }}" target="_blank" rel="noopener"
+        {{-- Patients get Save File only (no Print), per the clinic's revision. --}}
+        <a href="{{ route('prescriptions.download', $rx) }}"
            class="btn btn-sm btn-outline-primary no-print">
-            <i class="bi bi-printer me-1"></i>Print / View
+            <i class="bi bi-download me-1"></i>Save File
         </a>
     </div>
     <p class="small mb-2"><strong>Diagnosis:</strong> {{ $rx->diagnosis }}</p>

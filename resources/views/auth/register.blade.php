@@ -26,9 +26,10 @@
 
                         <div class="col-md-6 mb-3">
                             <label for="contact_no" class="form-label">Contact number <span class="text-danger">*</span></label>
-                            <input type="tel" class="form-control @error('contact_no') is-invalid @enderror" id="contact_no"
-                                   name="contact_no" value="{{ old('contact_no') }}" placeholder="0917 123 4567"
-                                   pattern="09\d{2}\s?\d{3}\s?\d{4}" title="Format: 09XX XXX XXXX" required>
+                            <input type="tel" inputmode="numeric" maxlength="11"
+                                   class="form-control js-digits-only @error('contact_no') is-invalid @enderror" id="contact_no"
+                                   name="contact_no" value="{{ old('contact_no') }}" placeholder="09171234567"
+                                   pattern="09\d{9}" title="11 digits, starting with 09" required>
                             <div class="form-text">Used for SMS appointment reminders. Format: 09XX XXX XXXX.</div>
                             @error('contact_no')<div class="invalid-feedback">{{ $message }}</div>@enderror
                         </div>
@@ -38,14 +39,17 @@
                         <div class="col-md-6 mb-3">
                             <label for="email" class="form-label">Email address <span class="text-danger">*</span></label>
                             <input type="email" class="form-control @error('email') is-invalid @enderror" id="email" name="email"
-                                   value="{{ old('email') }}" required>
+                                   value="{{ old('email') }}" placeholder="test@gmail.com" required>
                             @error('email')<div class="invalid-feedback">{{ $message }}</div>@enderror
                         </div>
 
                         <div class="col-md-6 mb-3">
                             <label for="age" class="form-label">Age</label>
-                            <input type="number" min="1" max="120" class="form-control @error('age') is-invalid @enderror"
-                                   id="age" name="age" value="{{ old('age') }}">
+                            {{-- max 2 digits: maxlength is ignored on type=number, so this is a
+                                 numeric text field with a hard character limit. --}}
+                            <input type="text" inputmode="numeric" maxlength="2"
+                                   class="form-control js-digits-only @error('age') is-invalid @enderror"
+                                   id="age" name="age" value="{{ old('age') }}" placeholder="e.g. 24">
                             @error('age')<div class="invalid-feedback">{{ $message }}</div>@enderror
                         </div>
                     </div>
@@ -131,5 +135,17 @@
 
     pwd.addEventListener('input', checkMatch);
     confirmPwd.addEventListener('input', checkMatch);
+
+    // Contact number (11 digits) and age (2 digits): keep digits only and
+    // enforce the hard character limit, since maxlength does not apply to
+    // every input type the same way.
+    document.querySelectorAll('.js-digits-only').forEach((input) => {
+        const limit = parseInt(input.getAttribute('maxlength'), 10) || 0;
+        input.addEventListener('input', () => {
+            let value = input.value.replace(/\D+/g, '');
+            if (limit) value = value.slice(0, limit);
+            if (value !== input.value) input.value = value;
+        });
+    });
 </script>
 @endpush

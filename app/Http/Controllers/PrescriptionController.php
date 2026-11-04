@@ -8,6 +8,7 @@ use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -44,6 +45,30 @@ class PrescriptionController extends Controller
             ]);
 
         return response()->json(['data' => $rows->values()]);
+    }
+
+    /**
+     * Save File: download one e-prescription as a standalone document.
+     *
+     * Patients may only download their own prescription; staff may download any.
+     */
+    public function download(Prescription $prescription): Response
+    {
+        abort_unless(
+            Auth::user()->isStaff() || (int) $prescription->patient_id === (int) Auth::id(),
+            403,
+            'You can only download your own prescriptions.'
+        );
+
+        $prescription->load(['patient.patientProfile', 'dentist', 'items', 'appointment']);
+
+        $html = view('prescriptions.print', ['prescription' => $prescription])->render();
+        $issued = $prescription->date_issued?->format('Y-m-d') ?? now()->format('Y-m-d');
+
+        return response($html, 200, [
+            'Content-Type' => 'text/html; charset=UTF-8',
+            'Content-Disposition' => 'attachment; filename="e-prescription-'.$issued.'-'.$prescription->id.'.html"',
+        ]);
     }
 
     /**

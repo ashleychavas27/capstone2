@@ -16,7 +16,7 @@
                 <table id="patientsTable" class="table table-hover align-middle w-100">
                     <thead class="table-light">
                         <tr>
-                            <th>#</th>
+                            <th>Patient No.</th>
                             <th>Name</th>
                             <th>Email</th>
                             <th>Contact No.</th>
@@ -47,9 +47,10 @@
                     showToast('Failed to load patients.', 'danger');
                 }
             },
-            order: [[1, 'asc']],
+            // Ordered by patient number by default.
+            order: [[0, 'asc']],
             columns: [
-                { data: 'id', width: '50px' },
+                { data: 'id', className: 'fw-semibold', width: '110px' },
                 { data: 'name' },
                 { data: 'email' },
                 { data: 'contact_no' },

@@ -141,28 +141,18 @@ class SmsService
      */
     public function sendAppointmentConfirmation(Appointment $appointment): ?SmsLog
     {
-        $phone = $appointment->patient?->contact_no;
+        $appointment->loadMissing(['patient', 'dentist']);
+        $clinic = self::clinicName();
 
-        if (empty($phone)) {
-            Log::info('[SMS] Skipped reminder: patient has no contact number.', [
-                'appointment_id' => $appointment->id,
-            ]);
-
-            return null;
-        }
-
-        $date = $appointment->appointment_date?->format('M d, Y') ?? $appointment->appointment_date;
-        $slot = $appointment->formatted_slot;
-
-        $message = sprintf(
-            'Good day, %s! Your appointment at %s on %s for %s has been CONFIRMED. Please arrive 15 minutes early. - '.config('app.name', 'Dental Clinic'),
-            $appointment->patient->name,
-            $slot,
-            $date,
-            $appointment->service_type
-        );
-
-        return $this->send($phone, $message);
+        return $this->notifyPatient($appointment, sprintf(
+            "Hello, %s! \u{1F49C}\n\nGood news! Your appointment for %s on %s, at %s is officially confirmed.\n\nKindly arrive 15 minutes before your scheduled time to allow for a smooth check-in.\n\nThank you for choosing %s! We're looking forward to seeing you and taking care of your smile. See you soon! \u{1F60A}\n\n— %s",
+            $appointment->patient?->name,
+            $appointment->service_type,
+            $appointment->appointment_date?->format('F j, Y'),
+            $appointment->formatted_slot,
+            $clinic,
+            $clinic
+        ));
     }
 
     /**
@@ -170,13 +160,19 @@ class SmsService
      */
     public function sendBookingAcknowledgment(Appointment $appointment): ?SmsLog
     {
+        $appointment->loadMissing(['patient', 'dentist']);
+        $clinic = self::clinicName();
+        $dentist = $appointment->dentist?->name;
+
         return $this->notifyPatient($appointment, sprintf(
-            'Good day, %s! We received your booking request for %s (%s) on %s at %s. It is now PENDING confirmation by the clinic. - '.config('app.name', 'Dental Clinic'),
+            "Good day, %s! \u{1F49C}\n\nThank you for choosing %s! We've received your appointment request for %s%s on %s, at %s.\n\nYour appointment is currently pending confirmation. We'll send you another message once it has been confirmed.\n\nWe look forward to taking care of your smile! Keep smiling! \u{1F60A}\n\n— %s",
             $appointment->patient?->name,
+            $clinic,
             $appointment->service_type,
-            $appointment->dentist?->name ?? 'any available dentist',
-            $appointment->appointment_date?->format('M d, Y'),
-            $appointment->formatted_slot
+            $dentist ? ' with Dr. '.$dentist : '',
+            $appointment->appointment_date?->format('F j, Y'),
+            $appointment->formatted_slot,
+            $clinic
         ));
     }
 
@@ -185,13 +181,24 @@ class SmsService
      */
     public function sendCancellationNotice(Appointment $appointment): ?SmsLog
     {
+        $appointment->loadMissing(['patient']);
+        $clinic = self::clinicName();
+
         return $this->notifyPatient($appointment, sprintf(
-            'Good day, %s! Your %s appointment on %s at %s has been CANCELLED. You may book again anytime through our online system. - '.config('app.name', 'Dental Clinic'),
+            "Hello, %s! \u{1F49C}\n\nWe regret to inform you that your appointment for %s scheduled on %s, at %s has been cancelled.\n\nWe apologize for any inconvenience this may cause. If you'd still like to visit us, you're always welcome to book another appointment.\n\nThank you for your understanding and for considering %s. We hope to see you again soon! \u{1F60A}\n\n— %s",
             $appointment->patient?->name,
             $appointment->service_type,
-            $appointment->appointment_date?->format('M d, Y'),
-            $appointment->formatted_slot
+            $appointment->appointment_date?->format('F j, Y'),
+            $appointment->formatted_slot,
+            $clinic,
+            $clinic
         ));
+    }
+
+    /** Patient-facing clinic name used in the notification copy. */
+    protected static function clinicName(): string
+    {
+        return (string) config('clinic.name', config('app.name', 'Datorin-Dajay Dental Clinic'));
     }
 
     /**

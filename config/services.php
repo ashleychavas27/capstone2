@@ -42,7 +42,10 @@ return [
     | SMS_MOCK=true simulates the gateway and logs to sms_logs.
     */
     'sms' => [
-        'mock' => (bool) env('SMS_MOCK', true),
+        // env() returns the raw string, and (bool) "false" is TRUE in PHP — which
+        // silently kept mock mode on even with SMS_MOCK=false. filter_var() parses
+        // "false"/"0"/"off" correctly.
+        'mock' => filter_var(env('SMS_MOCK', true), FILTER_VALIDATE_BOOL),
         'api_key' => env('SMS_API_KEY', ''),
         'sender_id' => env('SMS_SENDER_ID', 'DentalClinic'),
         'endpoint' => env('SMS_ENDPOINT', 'https://api.etextmo.com/api/send-message'),

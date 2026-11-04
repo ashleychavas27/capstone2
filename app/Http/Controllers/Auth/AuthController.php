@@ -61,7 +61,7 @@ class AuthController extends Controller
             'email' => ['required', 'email', 'max:255', 'unique:users,email'],
             'password' => ['required', 'string', 'min:8', 'confirmed'],
             'contact_no' => ['required', 'string', 'max:20'],
-            'age' => ['nullable', 'integer', 'between:1,120'],
+            'age' => ['nullable', 'integer', 'between:1,99'],
             'address' => ['nullable', 'string', 'max:500'],
             'medical_history' => ['nullable', 'string', 'max:2000'],
         ], [

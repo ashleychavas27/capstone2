@@ -48,6 +48,17 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Clinic display name
+    |--------------------------------------------------------------------------
+    |
+    | Patient-facing name used in SMS notifications. Override with CLINIC_NAME
+    | in .env if the clinic is ever rebranded.
+    |
+    */
+    'name' => env('CLINIC_NAME', 'Datorin-Dajay Dental Clinic'),
+
+    /*
+    |--------------------------------------------------------------------------
     | Dental procedures and estimated duration
     |--------------------------------------------------------------------------
     |

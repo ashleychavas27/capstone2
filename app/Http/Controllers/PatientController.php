@@ -43,7 +43,8 @@ class PatientController extends Controller
                 });
             })
             ->withCount(['patientAppointments as total_appointments'])
-            ->orderBy('name')
+            // Listed by patient number (registration order), as the clinic requested.
+            ->orderBy('id')
             ->get()
             ->map(fn (User $u) => [
                 'id' => $u->id,

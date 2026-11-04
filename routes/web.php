@@ -102,6 +102,10 @@ Route::middleware('auth')->group(function () {
         Route::get('/prescriptions/{prescription}/print', [PrescriptionController::class, 'print'])->whereNumber('prescription')->name('prescriptions.print');
     });
 
+    // Save File — patients may download only their own; staff may download any.
+    Route::get('/prescriptions/{prescription}/download', [PrescriptionController::class, 'download'])
+        ->whereNumber('prescription')->name('prescriptions.download');
+
     // Page 3 (staff side): schedule management + SMS trigger
     Route::middleware('role:Owner,Secretary')->group(function () {
         Route::get('/appointments', [AppointmentController::class, 'index'])->name('appointments.index');
