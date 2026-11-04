@@ -348,7 +348,7 @@
                 </div>
                 <div class="col-lg-4">
                     <div class="card h-100">
-                        <div class="card-header"><i class="bi bi-person-badge me-2 text-primary"></i>Dentist Duty</div>
+                        <div class="card-header"><i class="bi bi-person-badge me-2 text-primary"></i>Dentist Schedule</div>
                         <ul class="list-group list-group-flush">
                             @foreach($dentists as $d)
                                 <li class="list-group-item d-flex justify-content-between align-items-center gap-2">
