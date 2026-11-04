@@ -313,9 +313,16 @@
                                     <tr><th style="width:3rem;">#</th><th>Procedure</th><th>Local name</th><th>Estimated duration</th></tr>
                                 </thead>
                                 <tbody>
-                                    @foreach(\App\Models\Appointment::procedures() as $i => $procedure)
+                                    {{-- Patients see only the procedures they can book online;
+                                         "by appointment" ones are removed from their reference sheet. --}}
+                                    @php
+                                        $listedProcedures = auth()->user()->isStaff()
+                                            ? \App\Models\Appointment::procedures()
+                                            : \App\Models\Appointment::onlineProcedures();
+                                    @endphp
+                                    @foreach($listedProcedures as $procedure)
                                         <tr>
-                                            <td class="text-muted">{{ $i + 1 }}</td>
+                                            <td class="text-muted">{{ $loop->iteration }}</td>
                                             <td class="fw-semibold">{{ $procedure['name'] }}</td>
                                             <td class="text-muted small">{{ $procedure['local'] }}</td>
                                             <td>
