@@ -55,9 +55,32 @@
                     </div>
 
                     <div class="mb-3">
-                        <label for="address" class="form-label">Address</label>
-                        <input type="text" class="form-control @error('address') is-invalid @enderror" id="address"
-                               name="address" value="{{ old('address') }}">
+                        <label for="barangaySearch" class="form-label">Address (Barangay)</label>
+                        <div class="position-relative js-barangay-select">
+                            <input type="hidden" id="address" name="address" value="{{ old('address') }}">
+                            <button type="button"
+                                    class="form-select text-start js-barangay-toggle @error('address') is-invalid @enderror"
+                                    id="barangayToggle" aria-haspopup="listbox" aria-expanded="false"
+                                    aria-controls="barangayList">
+                                <span class="js-barangay-label text-muted">Select your barangay</span>
+                            </button>
+
+                            <div class="barangay-panel d-none">
+                                <input type="text" class="form-control form-control-sm mb-2" id="barangaySearch"
+                                       placeholder="Search barangay…" autocomplete="off"
+                                       aria-label="Search barangay">
+                                <ul class="list-unstyled mb-0 barangay-list" id="barangayList" role="listbox"
+                                    aria-label="Barangays of Dingle">
+                                    @foreach (config('clinic.barangays') as $barangay)
+                                        <li role="option" class="barangay-option" data-value="{{ $barangay }}"
+                                            tabindex="-1">{{ $barangay }}</li>
+                                    @endforeach
+                                </ul>
+                                <div class="small text-muted px-2 py-2 d-none js-barangay-empty">
+                                    No barangay matches that search.
+                                </div>
+                            </div>
+                        </div>
                         @error('address')<div class="invalid-feedback">{{ $message }}</div>@enderror
                     </div>
 
@@ -106,6 +129,44 @@
 </div>
 @endsection
 
+@push('styles')
+<style>
+    /* Searchable barangay dropdown: a scrollable list under a search box, so
+       33 barangays stay usable on a phone without a native-list hair-pull. */
+    .barangay-panel {
+        position: absolute;
+        inset: calc(100% + .25rem) 0 auto 0;
+        z-index: 1055;
+        padding: .5rem;
+        border: 1px solid var(--bs-border-color, #dee2e6);
+        border-radius: .5rem;
+        background: var(--bs-body-bg, #fff);
+        box-shadow: 0 .5rem 1.5rem rgba(0, 0, 0, .12);
+    }
+
+    .barangay-list {
+        max-height: 220px;
+        overflow-y: auto;
+    }
+
+    .barangay-option {
+        padding: .375rem .5rem;
+        border-radius: .375rem;
+        cursor: pointer;
+    }
+
+    .barangay-option:hover,
+    .barangay-option.is-active {
+        background: var(--bs-primary-bg-subtle, #cfe2ff);
+        color: var(--bs-primary-text-emphasis, #052c65);
+    }
+
+    .barangay-option.is-selected {
+        font-weight: 600;
+    }
+</style>
+@endpush
+
 @push('scripts')
 <script>
     // Show / hide password toggle.
@@ -147,5 +208,114 @@
             if (value !== input.value) input.value = value;
         });
     });
+
+    // Searchable barangay dropdown. The visible button shows the chosen
+    // barangay; the hidden input carries the value to the server.
+    (function () {
+        const wrapper = document.querySelector('.js-barangay-select');
+        if (!wrapper) return;
+
+        const toggle = wrapper.querySelector('.js-barangay-toggle');
+        const label = wrapper.querySelector('.js-barangay-label');
+        const panel = wrapper.querySelector('.barangay-panel');
+        const search = wrapper.querySelector('#barangaySearch');
+        const hidden = wrapper.querySelector('#address');
+        const empty = wrapper.querySelector('.js-barangay-empty');
+        const options = Array.from(wrapper.querySelectorAll('.barangay-option'));
+        let activeIndex = -1;
+
+        function visibleOptions() {
+            return options.filter((option) => !option.classList.contains('d-none'));
+        }
+
+        function paintLabel(value) {
+            label.textContent = value || 'Select your barangay';
+            label.classList.toggle('text-muted', !value);
+            options.forEach((option) => {
+                option.classList.toggle('is-selected', option.dataset.value === value);
+                option.setAttribute('aria-selected', option.dataset.value === value ? 'true' : 'false');
+            });
+        }
+
+        function setActive(option) {
+            options.forEach((item) => item.classList.remove('is-active'));
+            activeIndex = option ? visibleOptions().indexOf(option) : -1;
+            if (option) {
+                option.classList.add('is-active');
+                option.scrollIntoView({ block: 'nearest' });
+            }
+        }
+
+        function open() {
+            panel.classList.remove('d-none');
+            toggle.setAttribute('aria-expanded', 'true');
+            search.value = '';
+            applyFilter();
+            search.focus();
+        }
+
+        function close() {
+            panel.classList.add('d-none');
+            toggle.setAttribute('aria-expanded', 'false');
+            setActive(null);
+        }
+
+        function choose(option) {
+            if (!option) return;
+            hidden.value = option.dataset.value;
+            paintLabel(option.dataset.value);
+            close();
+            toggle.focus();
+        }
+
+        function applyFilter() {
+            const term = search.value.trim().toLowerCase();
+            let shown = 0;
+            options.forEach((option) => {
+                const match = option.dataset.value.toLowerCase().includes(term);
+                option.classList.toggle('d-none', !match);
+                if (match) shown++;
+            });
+            empty.classList.toggle('d-none', shown > 0);
+            setActive(null);
+        }
+
+        toggle.addEventListener('click', () => {
+            panel.classList.contains('d-none') ? open() : close();
+        });
+
+        search.addEventListener('input', applyFilter);
+
+        search.addEventListener('keydown', (event) => {
+            const shown = visibleOptions();
+            if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+                event.preventDefault();
+                if (!shown.length) return;
+                const step = event.key === 'ArrowDown' ? 1 : -1;
+                let next = activeIndex + step;
+                if (next < 0) next = shown.length - 1;
+                if (next >= shown.length) next = 0;
+                setActive(shown[next]);
+            } else if (event.key === 'Enter') {
+                event.preventDefault();
+                choose(shown[activeIndex] || shown[0]);
+            } else if (event.key === 'Escape') {
+                close();
+                toggle.focus();
+            }
+        });
+
+        options.forEach((option) => {
+            option.addEventListener('click', () => choose(option));
+            option.addEventListener('mouseenter', () => setActive(option));
+        });
+
+        document.addEventListener('click', (event) => {
+            if (!wrapper.contains(event.target)) close();
+        });
+
+        // Restore the selection after a failed submit (old input).
+        paintLabel(hidden.value);
+    })();
 </script>
 @endpush

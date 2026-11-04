@@ -191,4 +191,51 @@ return [
 
     'default_duty_days' => [1, 2, 3, 4, 5, 6],
 
+    /*
+    |--------------------------------------------------------------------------
+    | Barangays of Dingle, Iloilo
+    |--------------------------------------------------------------------------
+    |
+    | The clinic serves Dingle, so a patient's address is one of its barangays
+    | rather than free text. The registration form renders this as a searchable
+    | dropdown, and the patient list/reports read the same label back.
+    |
+    */
+
+    'barangays' => [
+        'Abangay',
+        'Agsalanan',
+        'Agtatacay',
+        'Alegria',
+        'Bongloy',
+        'Buenavista',
+        'Caguyuman',
+        'Calicuang',
+        'Camambugan',
+        'Dawis',
+        'Ginalinan Nuevo',
+        'Ginalinan Viejo',
+        'Gutao',
+        'Ilajas',
+        'Libo-o',
+        'Licu-an (Licuan)',
+        'Lincud',
+        'Matangharon',
+        'Moroboro',
+        'Namatay',
+        'Nazuni',
+        'Pandan',
+        'Poblacion',
+        'Potolan',
+        'San Jose',
+        'San Matias',
+        'Siniba-an',
+        'Tabugon',
+        'Tambunac',
+        'Tanghawan',
+        'Tiguib',
+        'Tinocuan',
+        'Tulatula-an',
+    ],
+
 ];
