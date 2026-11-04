@@ -278,6 +278,6 @@ class PrescriptionCalendarChatTest extends TestCase
 
         $log = SmsLog::where('recipient_phone', $patient->contact_no)->first();
         $this->assertNotNull($log);
-        $this->assertStringContainsString('PENDING', $log->message);
+        $this->assertStringContainsString('pending confirmation', $log->message);
     }
 }

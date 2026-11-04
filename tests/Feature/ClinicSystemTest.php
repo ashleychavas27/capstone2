@@ -201,7 +201,7 @@ class ClinicSystemTest extends TestCase
 
         $log = SmsLog::first();
         $this->assertStringContainsString($patient->name, $log->message);
-        $this->assertStringContainsString('CONFIRMED', $log->message);
+        $this->assertStringContainsString('officially confirmed', $log->message);
     }
 
     public function test_updating_status_does_not_resend_sms_if_already_confirmed(): void
