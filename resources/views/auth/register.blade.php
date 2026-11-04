@@ -28,7 +28,7 @@
                             <label for="contact_no" class="form-label">Contact number <span class="text-danger">*</span></label>
                             <input type="tel" inputmode="numeric" maxlength="11"
                                    class="form-control js-digits-only @error('contact_no') is-invalid @enderror" id="contact_no"
-                                   name="contact_no" value="{{ old('contact_no') }}" placeholder="09171234567"
+                                   name="contact_no" value="{{ old('contact_no') }}" placeholder="09XXXXXXXXX"
                                    pattern="09\d{9}" title="11 digits, starting with 09" required>
                             <div class="form-text">Used for SMS appointment reminders. Format: 09XX XXX XXXX.</div>
                             @error('contact_no')<div class="invalid-feedback">{{ $message }}</div>@enderror
