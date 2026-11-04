@@ -38,6 +38,18 @@
 @push('scripts')
 <script>
     $(function () {
+        // Search only the beginning of the patient name: typing "A" lists
+        // patients whose name starts with A, not everyone with an "a" anywhere
+        // in their name, e-mail or address. The shared fuzzy-search extension
+        // keeps the term on settings._fuzzyTerm, so read it from there.
+        $.fn.dataTable.ext.search.push(function (settings, rowData) {
+            if (settings.nTable.id !== 'patientsTable') return true;
+            const term = String(settings._fuzzyTerm || '').trim().toLowerCase();
+            if (!term) return true;
+            const name = String(rowData[1] || '').trim().toLowerCase();
+            return name.startsWith(term);
+        });
+
         const table = $('#patientsTable').DataTable({
             ...dtDefaults,
             ajax: {
@@ -78,7 +90,10 @@
         });
 
         // Re-apply our custom search styling (dtDefaults.language.search uses an icon).
-        $('#patientsTable_filter input').attr('placeholder', 'Search name, email, contact…').addClass('form-control-sm');
+        $('#patientsTable_filter input')
+            .attr('placeholder', 'Search name (starts with)…')
+            .attr('title', 'Matches the first letters of a patient name')
+            .addClass('form-control-sm');
 
         // Click anywhere on a row to open the patient record.
         $('#patientsTable tbody').on('click', 'tr', function (e) {
