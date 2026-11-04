@@ -193,7 +193,9 @@
                                         <select class="form-select" id="service_type" name="service_type" required>
                                             <option value="">Select procedure…</option>
                                             @foreach(\App\Models\Appointment::onlineProcedures() as $procedure)
-                                                <option value="{{ $procedure['name'] }}">{{ $procedure['name'] }} — {{ $procedure['display'] }}</option>
+                                                {{-- Name only: the estimate is shown once a date is
+                                                     picked, so the dropdown stays short. --}}
+                                                <option value="{{ $procedure['name'] }}">{{ $procedure['name'] }}</option>
                                             @endforeach
                                             {{-- "By appointment" procedures are hidden from patients; staff
                                                  still need them to record sessions arranged at the clinic. --}}
