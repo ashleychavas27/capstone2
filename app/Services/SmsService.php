@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\Appointment;
 use App\Models\SmsLog;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
@@ -149,7 +150,7 @@ class SmsService
             $appointment->patient?->name,
             $appointment->service_type,
             $appointment->appointment_date?->format('F j, Y'),
-            $appointment->formatted_slot,
+            self::naturalTime($appointment),
             $clinic,
             $clinic
         ));
@@ -171,7 +172,7 @@ class SmsService
             $appointment->service_type,
             $dentist ? ' with Dr. '.$dentist : '',
             $appointment->appointment_date?->format('F j, Y'),
-            $appointment->formatted_slot,
+            self::naturalTime($appointment),
             $clinic
         ));
     }
@@ -185,14 +186,32 @@ class SmsService
         $clinic = self::clinicName();
 
         return $this->notifyPatient($appointment, sprintf(
-            "Hello, %s! \u{1F49C}\n\nWe regret to inform you that your appointment for %s scheduled on %s, at %s has been cancelled.\n\nWe apologize for any inconvenience this may cause. If you'd still like to visit us, you're always welcome to book another appointment.\n\nThank you for your understanding and for considering %s. We hope to see you again soon! \u{1F60A}\n\n— %s",
+            "Hello, %s! \u{1F49C} We regret to inform you that your appointment for %s scheduled on %s, at %s has been cancelled.\n\nWe apologize for any inconvenience this may cause. If you'd still like to visit us, you're always welcome to book another appointment.\n\nThank you for your understanding and for considering %s. We hope to see you again soon! \u{1F60A}\n\n— %s",
             $appointment->patient?->name,
             $appointment->service_type,
             $appointment->appointment_date?->format('F j, Y'),
-            $appointment->formatted_slot,
+            self::naturalTime($appointment),
             $clinic,
             $clinic
         ));
+    }
+
+    /**
+     * Time as a person writes it: "9:00 AM" rather than the table's "09:00 AM".
+     */
+    protected static function naturalTime(Appointment $appointment): string
+    {
+        $slot = (string) $appointment->time_slot;
+
+        if ($slot === '') {
+            return '';
+        }
+
+        try {
+            return Carbon::createFromFormat('H:i', $slot)->format('g:i A');
+        } catch (\Throwable) {
+            return (string) $appointment->formatted_slot;
+        }
     }
 
     /** Patient-facing clinic name used in the notification copy. */
