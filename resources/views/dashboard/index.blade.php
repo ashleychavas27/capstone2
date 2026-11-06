@@ -186,4 +186,7 @@
         </div>
         @endif
     </div>
+
+    {{-- Clinic reference sheet: procedures, dentist duty days and clinic hours. --}}
+    @include('partials.clinic-reference')
 @endsection
