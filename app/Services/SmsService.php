@@ -18,9 +18,24 @@ use Illuminate\Support\Facades\Log;
  * When SMS_MOCK=true (default) the HTTP call is simulated and the attempt is
  * recorded in sms_logs with status "Mocked" so the feature can be demonstrated
  * without a real SMS gateway / network access.
+ *
+ * One segment per message. A single emoji or curly quote flips the whole payload
+ * to Unicode (UCS-2), which drops the per-segment budget from 160 characters to
+ * 70 - that is why the first versions arrived cut off. Every patient message is
+ * therefore written in the plain GSM-7 alphabet with the emoji and em dashes
+ * removed, and each one is checked with segments() before it is sent; when a long
+ * name or procedure will not fit, the shorter variant is used instead.
  */
 class SmsService
 {
+    /** GSM-7 default alphabet: 1 unit per character. */
+    protected const GSM7_BASIC = "@£\$¥èéùìòÇ\nØø\rÅåΔ_ΦΓΛΩΠΨΣΘΞÆæßÉ !\"#¤%&'()*+,-./0123456789:;<=>?¡ABCDEFGHIJKLMNOPQRSTUVWXYZÄÖÑÜ§¿abcdefghijklmnopqrstuvwxyzäöñüà";
+
+    /** GSM-7 extension alphabet: each of these costs 2 units, so they are avoided. */
+    protected const GSM7_EXTENDED = "^{}\\[~]|€";
+
+    /** Single-segment budget in GSM-7 units (153 + 7 for the concatenation header when split). */
+    public const MAX_GSM7_UNITS = 160;
     public function __construct(
         protected bool $mock = true,
         protected string $apiKey = '',
@@ -57,11 +72,87 @@ class SmsService
     }
 
     /**
+     * Does the message need Unicode encoding? One emoji is enough to force it.
+     */
+    public static function usesUnicode(string $message): bool
+    {
+        foreach (mb_str_split($message, 1, 'UTF-8') as $char) {
+            if (! str_contains(self::GSM7_BASIC, $char) && ! str_contains(self::GSM7_EXTENDED, $char)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * Billable segments for a message: 160 GSM-7 units, or 70 Unicode characters.
+     */
+    public static function segments(string $message): int
+    {
+        if ($message === '') {
+            return 0;
+        }
+
+        $chars = mb_str_split($message, 1, 'UTF-8');
+
+        if (self::usesUnicode($message)) {
+            return count($chars) <= 70 ? 1 : (int) ceil(count($chars) / 67);
+        }
+
+        $units = 0;
+
+        foreach ($chars as $char) {
+            $units += str_contains(self::GSM7_EXTENDED, $char) ? 2 : 1;
+        }
+
+        return $units <= self::MAX_GSM7_UNITS ? 1 : (int) ceil($units / 153);
+    }
+
+    /**
+     * Long messages are split by the gateway and can arrive cut off on some
+     * networks, so the copy is always kept inside one segment.
+     */
+    public static function fitsOneSegment(string $message): bool
+    {
+        return self::segments($message) === 1;
+    }
+
+    /**
+     * Pick the first candidate that fits a single segment, else the shortest one.
+     *
+     * @param  array<int, string>  $candidates  most faithful wording first
+     */
+    protected function fitOneSegment(array $candidates): string
+    {
+        foreach ($candidates as $candidate) {
+            if (self::fitsOneSegment($candidate)) {
+                return $candidate;
+            }
+        }
+
+        $message = collect($candidates)->sortBy(fn (string $c) => mb_strlen($c))->first();
+
+        Log::warning('[SMS] No single-segment variant fits; sending the shortest one.', [
+            'length' => mb_strlen($message),
+        ]);
+
+        return $message;
+    }
+
+    /**
      * Send a message to one recipient and persist the attempt in sms_logs.
      */
     public function send(string $recipientPhone, string $message): SmsLog
     {
         $normalizedPhone = self::normalizePhone($recipientPhone);
+
+        if (! self::fitsOneSegment($message)) {
+            Log::warning('[SMS] Message is longer than one segment and may arrive truncated.', [
+                'segments' => self::segments($message),
+                'length' => mb_strlen($message),
+            ]);
+        }
 
         if ($this->mock) {
             // Simulate the gateway round-trip.
@@ -143,17 +234,8 @@ class SmsService
     public function sendAppointmentConfirmation(Appointment $appointment): ?SmsLog
     {
         $appointment->loadMissing(['patient', 'dentist']);
-        $clinic = self::clinicName();
 
-        return $this->notifyPatient($appointment, sprintf(
-            "Hello, %s! \u{1F49C}\n\nGood news! Your appointment for %s on %s, at %s is officially confirmed.\n\nKindly arrive 15 minutes before your scheduled time to allow for a smooth check-in.\n\nThank you for choosing %s! We're looking forward to seeing you and taking care of your smile. See you soon! \u{1F60A}\n\n— %s",
-            $appointment->patient?->name,
-            $appointment->service_type,
-            $appointment->appointment_date?->format('F j, Y'),
-            self::naturalTime($appointment),
-            $clinic,
-            $clinic
-        ));
+        return $this->notifyPatient($appointment, $this->fitOneSegment($this->confirmationCopy($appointment)));
     }
 
     /**
@@ -162,19 +244,8 @@ class SmsService
     public function sendBookingAcknowledgment(Appointment $appointment): ?SmsLog
     {
         $appointment->loadMissing(['patient', 'dentist']);
-        $clinic = self::clinicName();
-        $dentist = $appointment->dentist?->name;
 
-        return $this->notifyPatient($appointment, sprintf(
-            "Good day, %s! \u{1F49C}\n\nThank you for choosing %s! We've received your appointment request for %s%s on %s, at %s.\n\nYour appointment is currently pending confirmation. We'll send you another message once it has been confirmed.\n\nWe look forward to taking care of your smile! Keep smiling! \u{1F60A}\n\n— %s",
-            $appointment->patient?->name,
-            $clinic,
-            $appointment->service_type,
-            $dentist ? ' with Dr. '.$dentist : '',
-            $appointment->appointment_date?->format('F j, Y'),
-            self::naturalTime($appointment),
-            $clinic
-        ));
+        return $this->notifyPatient($appointment, $this->fitOneSegment($this->pendingCopy($appointment)));
     }
 
     /**
@@ -183,17 +254,77 @@ class SmsService
     public function sendCancellationNotice(Appointment $appointment): ?SmsLog
     {
         $appointment->loadMissing(['patient']);
+
+        return $this->notifyPatient($appointment, $this->fitOneSegment($this->cancellationCopy($appointment)));
+    }
+
+    /**
+     * Pending (booking received) copy, longest variant first.
+     *
+     * @return array<int, string>
+     */
+    protected function pendingCopy(Appointment $appointment): array
+    {
+        $patient = (string) $appointment->patient?->name;
+        $first = self::firstName($patient);
+        $service = (string) $appointment->service_type;
+        $withDentist = self::dentistSuffix($appointment);
+        $date = self::longDate($appointment);
+        $shortDate = self::shortDate($appointment);
+        $time = self::naturalTime($appointment);
         $clinic = self::clinicName();
 
-        return $this->notifyPatient($appointment, sprintf(
-            "Hello, %s! \u{1F49C} We regret to inform you that your appointment for %s scheduled on %s, at %s has been cancelled.\n\nWe apologize for any inconvenience this may cause. If you'd still like to visit us, you're always welcome to book another appointment.\n\nThank you for your understanding and for considering %s. We hope to see you again soon! \u{1F60A}\n\n— %s",
-            $appointment->patient?->name,
-            $appointment->service_type,
-            $appointment->appointment_date?->format('F j, Y'),
-            self::naturalTime($appointment),
-            $clinic,
-            $clinic
-        ));
+        return [
+            "Hello, {$patient}! Your {$service}{$withDentist} on {$date} at {$time} is pending confirmation. We'll text you once it's confirmed.",
+            "Hi {$first}! Your {$service}{$withDentist} on {$shortDate} at {$time} is pending confirmation. We'll text you once it's confirmed.",
+            "Hi {$first}! {$service} on {$shortDate} at {$time} is pending - we'll text you once it's confirmed.",
+        ];
+    }
+
+    /**
+     * Confirmation copy, longest variant first.
+     *
+     * @return array<int, string>
+     */
+    protected function confirmationCopy(Appointment $appointment): array
+    {
+        $patient = (string) $appointment->patient?->name;
+        $first = self::firstName($patient);
+        $service = (string) $appointment->service_type;
+        $date = self::longDate($appointment);
+        $shortDate = self::shortDate($appointment);
+        $time = self::naturalTime($appointment);
+        $clinic = self::clinicName();
+
+        return [
+            "Hello, {$patient}! Your {$service} on {$date} at {$time} is confirmed. Please arrive 15 minutes early. - {$clinic}",
+            "Hello, {$patient}! Your {$service} on {$date} at {$time} is confirmed. Please arrive 15 minutes early.",
+            "Hi {$first}! Your {$service} on {$shortDate} at {$time} is confirmed. Please arrive 15 mins early.",
+            "Hi {$first}! {$service} on {$shortDate} at {$time} is confirmed.",
+        ];
+    }
+
+    /**
+     * Cancelled copy, longest variant first.
+     *
+     * @return array<int, string>
+     */
+    protected function cancellationCopy(Appointment $appointment): array
+    {
+        $patient = (string) $appointment->patient?->name;
+        $first = self::firstName($patient);
+        $service = (string) $appointment->service_type;
+        $date = self::longDate($appointment);
+        $shortDate = self::shortDate($appointment);
+        $time = self::naturalTime($appointment);
+        $clinic = self::clinicName();
+
+        return [
+            "Hello, {$patient}! Your {$service} on {$date} at {$time} has been cancelled. You're welcome to reschedule anytime. - {$clinic}",
+            "Hello, {$patient}! Your {$service} on {$date} at {$time} has been cancelled. You're welcome to reschedule anytime.",
+            "Hi {$first}! Your {$service} on {$shortDate} at {$time} is cancelled. Sorry for the inconvenience - you may reschedule anytime.",
+            "Hi {$first}! {$service} on {$shortDate} at {$time} is cancelled. Sorry - you may reschedule anytime.",
+        ];
     }
 
     /**
@@ -225,13 +356,55 @@ class SmsService
      */
     public function sendDayBeforeReminder(Appointment $appointment): ?SmsLog
     {
-        return $this->notifyPatient($appointment, sprintf(
-            'Reminder from '.config('app.name', 'Dental Clinic').': %s, you have a %s appointment tomorrow, %s at %s. Please arrive 15 minutes early. - '.config('app.name', 'Dental Clinic'),
-            $appointment->patient?->name,
-            $appointment->service_type,
-            $appointment->appointment_date?->format('M d, Y'),
-            $appointment->formatted_slot
-        ));
+        $appointment->loadMissing(['patient']);
+
+        $first = self::firstName((string) $appointment->patient?->name);
+        $service = (string) $appointment->service_type;
+        $date = self::shortDate($appointment);
+        $time = self::naturalTime($appointment);
+        $clinic = self::clinicName();
+
+        return $this->notifyPatient($appointment, $this->fitOneSegment([
+            "Hi {$first}! Reminder: your {$service} appointment is tomorrow, {$date} at {$time}. Please arrive 15 minutes early. - {$clinic}",
+            "Hi {$first}! Reminder: {$service} tomorrow, {$date} at {$time}. Please arrive 15 mins early.",
+            "Reminder: {$service} tomorrow at {$time}. - {$clinic}",
+        ]));
+    }
+
+    /** First name, for the compact variants. */
+    protected static function firstName(string $name): string
+    {
+        $parts = preg_split('/\s+/', trim($name)) ?: [];
+
+        return $parts[0] ?? trim($name);
+    }
+
+    /** " with Dr. X" unless the name already carries the title. */
+    protected static function dentistSuffix(Appointment $appointment): string
+    {
+        $dentist = trim((string) $appointment->dentist?->name);
+
+        if ($dentist === '') {
+            return '';
+        }
+
+        if (preg_match('/^dr\.?\s/i', $dentist)) {
+            return ' with '.$dentist;
+        }
+
+        return ' with Dr. '.$dentist;
+    }
+
+    /** "November 6, 2026" */
+    protected static function longDate(Appointment $appointment): string
+    {
+        return (string) $appointment->appointment_date?->format('F j, Y');
+    }
+
+    /** "Nov 6, 2026" */
+    protected static function shortDate(Appointment $appointment): string
+    {
+        return (string) $appointment->appointment_date?->format('M j, Y');
     }
 
     /** Shared guard: skip silently when the patient has no contact number. */

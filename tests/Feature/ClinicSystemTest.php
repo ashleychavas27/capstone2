@@ -6,6 +6,7 @@ use App\Models\Appointment;
 use App\Models\PatientProfile;
 use App\Models\SmsLog;
 use App\Models\User;
+use App\Services\SmsService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -201,7 +202,50 @@ class ClinicSystemTest extends TestCase
 
         $log = SmsLog::first();
         $this->assertStringContainsString($patient->name, $log->message);
-        $this->assertStringContainsString('officially confirmed', $log->message);
+        $this->assertStringContainsString('is confirmed', $log->message);
+    }
+
+    /**
+     * One emoji or curly quote forces Unicode encoding, which caps a segment at 70
+     * characters - the reason the first patient messages arrived cut off.
+     */
+    public function test_patient_sms_messages_are_plain_text_that_fits_one_segment(): void
+    {
+        $patient = $this->makePatient();
+        $patient->update(['name' => 'Maria Cristina Evangelista Villanueva']);
+
+        $dentist = $this->makeUser(User::ROLE_DENTIST);
+        $dentist->update(['name' => 'Wenca Louise Dajay Ortizo']);
+
+        $appointment = Appointment::create([
+            'patient_id' => $patient->id,
+            'dentist_id' => $dentist->id,
+            'appointment_date' => '2027-01-20',
+            'time_slot' => '09:30',
+            'service_type' => 'Braces / Orthodontic Consultation',
+            'status' => Appointment::STATUS_PENDING,
+        ]);
+
+        $sms = app(SmsService::class);
+
+        $messages = [
+            'pending' => $sms->sendBookingAcknowledgment($appointment)->message,
+            'confirmed' => $sms->sendAppointmentConfirmation($appointment)->message,
+            'cancelled' => $sms->sendCancellationNotice($appointment)->message,
+            'reminder' => $sms->sendDayBeforeReminder($appointment)->message,
+        ];
+
+        foreach ($messages as $kind => $message) {
+            $this->assertFalse(
+                SmsService::usesUnicode($message),
+                "The {$kind} SMS uses Unicode characters, so it is limited to 70 characters per segment: {$message}"
+            );
+            $this->assertSame(
+                1,
+                SmsService::segments($message),
+                "The {$kind} SMS needs more than one segment and may arrive truncated: {$message}"
+            );
+        }
     }
 
     public function test_updating_status_does_not_resend_sms_if_already_confirmed(): void
